@@ -34,11 +34,6 @@ load(file = paste0(loc,"/Results/all_cleaned_forward_tune_summaries_fec_nm.Rdata
 
 ########################### End Section 1 Loading  ###################################### End Section 1 Loading ###############################################
 
-
-
-
-
-
 ########################## Section 2 Parameters ########################## Section 2 Parameters ########################## Section 2 Parameters
 
 yrs.all <- 1990:2016 # These are the years we have data for all 10 stocks
@@ -54,11 +49,11 @@ n.sims <- 10
 # fish.mort$stock <- Stocks
 # fish.mort <- fish.mort[,c(2,3,1)] # reorder for below
 
-# SO now I want to get the carrying capacity and slice it up by stock
+#So now I want to get the carrying capacity and slice it up by stock
 Stocks <- names(for.tune.all)
 Stocks <- Stocks[grep("NS",Stocks)]
 Stocks <- Stocks[Stocks != "ICES-WGHANSA_SP8abd_Sardina _pilchardus"]
-# Haddock in NS is busted before 1972, not sure why, but I'm chucking all that data here in a very sloppy way
+#Haddock in NS is busted before 1972, not sure why, but I'm chucking all that data here in a very sloppy way
 
 # So lets look at total abundance and total biomass in the system by year...
 
