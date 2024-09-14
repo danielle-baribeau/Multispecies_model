@@ -26,6 +26,7 @@ for(fun in funs)
 
 # Want the local version for now...
 source("D:/Github/ICM/Scripts/functions/simple_forward_sim.r")
+source("D:/Github/ICM/Scripts/functions/simple_Lotka_r_for_sims.r")
 
 
 #load(file = "D:/Github/ICM/Results/model_inputs.Rdata")
@@ -40,7 +41,7 @@ load(file = paste0(dat.loc,"/Results/model_inputs_no_age_correction.Rdata"))
 ########################## Section 2 Parameters ########################## Section 2 Parameters ########################## Section 2 Parameters
 
 n.yrs.proj <- 100 # How many years into the future we are going to project the stocks
-n.sims <- 500 # The numbers of simulations to run, keeping low for testing...
+n.sims <- 1000 # The numbers of simulations to run, keeping low for testing...
 
 # We've spelt the name of Turbot wrong and the name of arrow-tooth flounder. Tidy up of other names because of spaces and capitialization.
 ASR.long$Genus[ASR.long$Genus == 'Scopthalmus'] <- "Scophthalmus" 
@@ -189,12 +190,16 @@ n.years <- length(first.year:last.year)
 bm.best <- bm.final |> collapse::fsubset(Year %in% first.year:last.year) 
 
 # Biomass by trophic level over time
-ggplot(bm.best) + geom_line(aes(x=Year,y=bm.tl,group=troph.cat,color=troph.cat)) + 
-  scale_color_manual(values = c("blue","red","darkgrey","lightgreen")) + scale_y_log10(name="Biomass")
+tl.bm.plt <- ggplot(bm.best) + geom_line(aes(x=Year,y=bm.tl,group=troph.cat,color=troph.cat)) + 
+                    scale_color_manual(values = c("blue","red","darkgrey","lightgreen")) + scale_y_log10(name="Biomass")
+save_plot(filename = paste0(repo.loc,"/Figures/TL_biomass_ts.png"),plot = tl.bm.plt,base_width = 11,base_height = 8)
 
 # This is real good now...
-ggplot(bm.best) + geom_line(aes(x=Year,y=prop.bm.tl,group=troph.cat,color=troph.cat)) + 
-  scale_color_manual(values = c("blue","red","darkgrey","lightgreen")) + scale_y_continuous(name="Proportion of Biomass")
+tl.prop.bm.plt <- ggplot(bm.best) + geom_line(aes(x=Year,y=prop.bm.tl,group=troph.cat,color=troph.cat)) + 
+                               scale_color_manual(values = c("blue","red","darkgrey","lightgreen")) + scale_y_continuous(name="Proportion of Biomass")
+save_plot(filename = paste0(repo.loc,"/Figures/TL_prop_biomass_ts.png"),plot = tl.prop.bm.plt,base_width = 11,base_height = 8)
+
+
 # The 'transfer efficiency' between our trophic levels
 tl.3.to.4 <- bm.best$prop.bm.tl[bm.best$troph.cat==4][1:n.years]/bm.best$prop.bm.tl[bm.best$troph.cat==3][1:n.years]
 tl.4.to.5 <- bm.best$prop.bm.tl[bm.best$troph.cat==5][1:n.years]/bm.best$prop.bm.tl[bm.best$troph.cat==4][1:n.years]
@@ -205,7 +210,7 @@ tl.3.to.5 <- bm.best$prop.bm.tl[bm.best$troph.cat==5][1:n.years]/bm.best$prop.bm
 # So now we want to look at stock level within a trophic level
 # add some colors...
 bm.best$color <- "black"
-bm.best$color[bm.best$species %in% c("Clupea harengus","Melanogrammus aeglefinus","Gadus morhua")] <- "blue"
+bm.best$color[bm.best$species %in% c("Clupea harengus","Melanogrhttp://127.0.0.1:33773/graphics/plot_zoom_png?width=852&height=900ammus aeglefinus","Gadus morhua")] <- "blue"
 bm.best$color[bm.best$species %in% c("Pleuronectes platessa","Solea solea")] <- "green"
 bm.best$color[bm.best$species %in% c("Trisopterus esmarkii","Merlangius merlangus")] <- "grey"
 bm.best$color[bm.best$species %in% c("Pollachius virens")] <- "orange"
@@ -217,13 +222,16 @@ colors <- distinct(bm.best, spec.tl, color)
 pal <- colors$color
 names(pal) <- colors$spec.tl
 
-ggplot(bm.best) + geom_line(aes(x=Year,y=prop.bm.stock.tl,group = Stock,color=spec.tl),linewidth=2) + 
-                  facet_wrap(~troph.cat) +
-                  scale_y_log10(n.breaks=10) + scale_color_manual(values=pal)
+spc.prop.bm.plt <- ggplot(bm.best) + geom_line(aes(x=Year,y=prop.bm.stock.tl,group = Stock,color=spec.tl),linewidth=2) + 
+                                facet_wrap(~troph.cat) +
+                                scale_y_log10(name="Proportion of TL biomass",n.breaks=10) + scale_color_manual(values=pal)
+save_plot(filename = paste0(repo.loc,"/Figures/Species_historic_prop_biomass_by_TL.png"),plot = spc.prop.bm.plt,base_width = 11,base_height = 8)
 
-ggplot(bm.best) + geom_line(aes(x=Year,y=bm.stock,group = Stock,color=species)) + 
-                  facet_wrap(~troph.cat) +
-                  scale_y_log10(n.breaks=7)
+
+spc.bm.plt <- ggplot(bm.best) + geom_line(aes(x=Year,y=bm.stock,group = Stock,color=spec.tl)) + 
+                                facet_wrap(~troph.cat) +
+                                scale_y_log10(name="Biomass",n.breaks=7) + scale_color_manual(values=pal)
+save_plot(filename = paste0(repo.loc,"/Figures/Species_historic_biomass_by_TL.png"),plot = spc.bm.plt,base_width = 11,base_height = 8)
 
 
 # So Model 1: You're Basic
@@ -523,9 +531,11 @@ bm.2014 <- bm.mod.yrs |> collapse::fsubset(Year == last.year) |>
 init.eco.bm <- sum(bm.2014$bm.tot)
 init.tl.bm <- bm.2014 |> collapse::fgroup_by(troph.cat) |> collapse::fsummarise(bm.tl = sum(bm.tot))
 init.stock.bm <- bm.2014
-# Get the average weight of the fish in the stocks so we can go from biomass to abundance for the model
-# FIX: This could definitely be done more sophisisticatedly!
-av.wgt <- fm.dat |> collapse::fgroup_by(Stock,troph.cat) |> collapse::fsummarise(mn.wgt = mean(avg.weight,na.rm=T))
+
+# Get the wieght of the stock in the most recent year to go from abundance to biomass
+# FIX: This could definitely be done more sophisisticatedly! Maybe make this a autocorrelated Time series too
+# so that weight can evolve over time.
+wgt.4.sim <- fm.dat |> collapse::fgroup_by(Stock,troph.cat) |> collapse::fsummarise(wgt = avg.weight[length(avg.weight)])
 
 
 # So everything will need to get wrapped up in a simulation loop
@@ -550,10 +560,10 @@ for(j in 1:n.sims)
     # Then we'll need to get these from the model simulations.
     if(t > 1)
     {
-      # Use the handy av.wgt data.frame I made above
-      bm.stocks <- data.frame(abund = NA, bm = NA,av.wgt)
+      # Use the handy wgt.4.sim data.frame I made above
+      bm.stocks <- data.frame(abund = NA, bm = NA,wgt.4.sim)
       for(s in ns.stocks) bm.stocks$abund[bm.stocks$Stock == s] <- res.ts[[s]]$abund[res.ts[[s]]$Years == t-1]
-      bm.stocks$bm <- bm.stocks$abund*bm.stocks$mn.wgt
+      bm.stocks$bm <- bm.stocks$abund*bm.stocks$wgt
       stock.bm.last <- bm.stocks
       eco.bm.last <- sum(bm.stocks$bm)
       tl.bm.last <- bm.stocks |> collapse::fgroup_by(troph.cat) |> collapse::fsummarise(bm.tl = sum(bm))
@@ -574,9 +584,9 @@ for(j in 1:n.sims)
     # So now I have Carrying Capacities that take up (or lose) any available K space.
     # Now we can convert these to numbers using the historic 'average weight' of the stocks, to avoid complication
     # I'm just using the average of the average weight for each stock...
-    base.stock.K.tmp <- left_join(base.stock.K.tmp,av.wgt,by=c("Stock","troph.cat"))
+    base.stock.K.tmp <- left_join(base.stock.K.tmp,wgt.4.sim,by=c("Stock","troph.cat"))
     # And now we can get a K in numbers....
-    base.stock.K.tmp$adj.K.num <- base.stock.K.tmp$adj.K/base.stock.K.tmp$mn.wgt
+    base.stock.K.tmp$adj.K.num <- base.stock.K.tmp$adj.K/base.stock.K.tmp$wgt
     # Since I have Years and sim recorded, I should just be able to recursivly rbind this...
     if(t ==1 & j == 1) 
     {
@@ -605,7 +615,7 @@ for(j in 1:n.sims)
       if(t == 1) 
       {
         # The number of individuals (using our retrospective simulations)
-        vpa.ns  <- bm.final$num.stock[bm.final$Stock == s]
+        vpa.ns  <- bm.best$num.stock[bm.best$Stock == s]
         N.start <- vpa.ns[length(vpa.ns)]
         res.ts[[s]] <- data.frame(abund = N.start,removals = NA,Stock = s,sim= j,r = NA,Years=t-1,
                                   troph.cat = floor(ns.troph$TL[ns.troph$Stock ==s]),
@@ -684,7 +694,7 @@ for(j in 1:n.sims)
       min.fec <- c(unlist(mx[min.mx.year,]))
       # And get the year with the high natural mortality
       nm.years <- rowMeans(-(log(1-prop.nat.mort)))
-      max.nm.year <- which(nm.years == max(nm.years))
+      max.nm.year <- as.vector(which(nm.years == max(nm.years)))
       max.nm <- c(unlist(-(log(1-prop.nat.mort))[max.nm.year,]))
       
       # If there are still some 0 years mixed in here, we'll do this, just for the covariance matrix to work.
@@ -701,9 +711,17 @@ for(j in 1:n.sims)
       # This works, note that I've made the covariance matrix values be 10% of the whole thing, so that keeps the fecundity low there.
       if(ratioed >= 1) 
       {
-        mx.samp <-  exp(mvtnorm::rmvnorm(n = 1, mean = log(min.fec), sigma = 0.1*fec.covar,rnorm=stats::rnorm))
-        nm.samp <-  exp(mvtnorm::rmvnorm(n = 1, mean = log(max.nm), sigma = 0.1*nm.covar,rnorm=stats::rnorm))
-      }
+        # To avoid big declines in year 1 I do this one...
+        if(t== 1)
+        {
+        mn.fec <- colMeans(mx[high.abund.years,])
+        mx.samp <-  exp(mvtnorm::rmvnorm(n = 1, mean = log(mn.fec), sigma = 0.1*fec.covar,rnorm=stats::rnorm))
+        } else {
+          # These needed a little boost to make sure the stocks decline when above the K , lower variability to avoid WTF r values
+          mx.samp <-  exp(mvtnorm::rmvnorm(n = 1, mean = log(0.5*min.fec), sigma = 0.5*fec.covar,rnorm=stats::rnorm))
+          nm.samp <-  exp(mvtnorm::rmvnorm(n = 1, mean = log(1.25*max.nm), sigma = 0.5*nm.covar,rnorm=stats::rnorm))
+          }
+      } # end the else and t=1 if combo
       
       if(ratioed >= low.vs.high & ratioed < 1)
       {
@@ -714,10 +732,7 @@ for(j in 1:n.sims)
       
       # FIX: This isn't able to get the really high recruitment events from what I'm seeing
       # so worth thinking about how to account for those events
-      
-      
-      # PROBLEM!  SOME YEARS HAVE FECUNDITY OF 0 in first AGE CLASS FOR TOBIAS!!
-      
+
       if(ratioed < low.vs.high & low.years ==T)
       {
         mn.fec <- colMeans(mx[low.abund.years,])
@@ -741,7 +756,7 @@ for(j in 1:n.sims)
     tst <- simp.for.sim(years= 1,
                         nm = nm.samp, # Converted to instantaneous already
                         ages = ages,
-                        rems =  list(0.01,fm.stock$sd), #fm,
+                        rems =  list(m.stock$mn,0.1), #fm, list(fm.stock$mn,0.1)
                         fecund = mx.samp,
                         N.start = N.start,
                         pop.model = 'exponential', 
@@ -755,14 +770,21 @@ res.ts[[s]] <- rbind(res.ts[[s]] ,data.frame(abund = tst$Pop$abund[2],removals =
                                              Stock = s,sim= j,r = tst$r$r[1],Years=t,
                                              troph.cat = floor(ns.troph$TL[ns.troph$Stock ==s]),
                                              K.num = tmp.stock.K$adj.K.num))
-if(tst$r$r[1] > 14) stop("WTF")
+if(tst$r$r[1] > 2.3 | tst$r$r[1] < -2.3) stop("WTF")
 #abund.new[[s]] <- data.frame(abund = tst$Pop$abund[2])
 #res.r[[s]] <- data.frame(tst$r[1,-2],stock=s,sim=j)
 
   } # end stock loop
-  #res.tst[[t]] <- do.call("rbind",res.ts)
+    
   } # end the t looping through each year.
   
+  # I want to realign a few numbers here so r, fm, and K are lined up with the year that caused those things..
+  for(s in ns.stocks) 
+  {
+    res.ts[[s]]$K.num <- c(res.ts[[s]]$K.num[2:nrow(res.ts[[s]])],NA)
+    res.ts[[s]]$r <- c(res.ts[[s]]$r[2:nrow(res.ts[[s]])],NA)
+    res.ts[[s]]$fm <- c(res.ts[[s]]$fm[2:nrow(res.ts[[s]])],NA)
+  }
 #ggplot(base.stock.K) + geom_line(aes(x= Years,y=bm.stock,group=Stock,color=Stock)) + facet_wrap(~troph.cat) + scale_y_log10()
   
   # Unpack the results
@@ -780,40 +802,93 @@ if(tst$r$r[1] > 14) stop("WTF")
 
 # Unpack all the results.
 ts.final <- do.call("rbind",ts.unpack)
-
-ggplot(ts.final) + geom_line(aes(x= Years,y=abund,group=sim,color=sim)) + facet_wrap(~Stock) + scale_y_log10()
-
-
 ts.final$fm <- ts.final$removals/ts.final$abund
-r.final <- do.call("rbind",r.unpack)
+# Get the ecosystem and trophic level biomass
+ts.final <- ts.final |> collapse::fgroup_by(Years,sim) |> collapse::fmutate(eco.num = sum(abund))
+ts.final <- ts.final |> collapse::fgroup_by(Years,sim,troph.cat) |> collapse::fmutate(troph.num = sum(abund)) |> as.data.frame()
+ts.final$Years.adj <- ts.final$Years + min(years)-1
 
-quants <- ts.final |>  collapse::fgroup_by(Years,Stock,troph.cat) |> collapse::fsummarize(L.50 = quantile(abund,probs=c(0.25),na.rm=T),
+#r.final <- do.call("rbind",r.unpack)
+
+# Something might be janky with these....
+quants <- ts.final |>  collapse::fgroup_by(Years.adj,Years,Stock,troph.cat) |> collapse::fsummarize(L.50 = quantile(abund,probs=c(0.25),na.rm=T),
                                                                           med = median(abund,na.rm=T),
                                                                           U.50 = quantile(abund,probs=c(0.75),na.rm=T))#,
                                                                           #fml.50 = quantile(fm,probs=c(0.25),na.rm=T),
                                                                           #fm = median(fm,na.rm=T),
                                                                           #fmu.50 = quantile(fm,probs=c(0.75),na.rm=T))
-# If happy save the 2 objects
+# If happy save the 2 objects and the environment
 saveRDS(object = ts.final,file = paste0(repo.loc,"/Results/NS_projections_",n.sims,"_sims_",min(years),"_to_",max(years),
-                                         "_time_series_projections.Rds"))
+                                         "_low_fm_time_series_projections.Rds"))
 
 saveRDS(object = quants,file = paste0(repo.loc,"/Results/NS_projections_",n.sims,"_sims_",min(years),"_to_",max(years),
-                                       "_time_series_quantiles.Rds"))
-# 
-# saveRDS(object = r.final,file = paste0(repo.loc,"/Results/NS_projections_",n.sims,"_sims_",min(years),"_to_",max(years),
-#                                        "_r_projections.Rds"))
+                                       "_low_fm_time_series_quantiles.Rds"))
+# Save everything from the run...
+save.image(file = paste0(repo.loc,"/Results/NS_projections_",n.sims,"_sims_",min(years),"_to_",max(years),
+                         "_low_fm_input_and_results.RData"))
 
-
-# Two simple plots. 
-p.sims <- ggplot(ts.final ) + geom_line(aes(x=Years,y=abund,group = sim,color=sim),alpha=0.8) +
-  facet_wrap(~Stock,scales = 'free_y') + ylim(c(0,NA)) + scale_x_continuous(breaks = seq(2010,2200,by=10)) 
-#save_plot(paste0("D:/Github/ICM/Figures/NS_sims/NS_all_realizations_climate_starts_at_year_",c.effect,
-#                 "_mx_decade_effect_",climate.mx.effect, "_nm_decade_effect_",climate.nm.effect,".png"),p.sims,base_height = 12,base_width = 20)
-
-p.sims.quants <- ggplot(quants) + geom_line(aes(x=Years,y=med,group=Stock,color=Stock)) + facet_wrap(~troph.cat,scales = 'free_y') + ylim(c(0,NA)) #+
-  #geom_ribbon(data=quants, aes(x=Years,ymax=U.50,ymin = L.50),alpha=0.5,fill='blue',color='blue') 
-#save_plot(paste0("D:/Github/ICM/Figures/NS_sims/NS_quantiles_climate_starts_at_year_",c.effect,
-#                 "_mx_decade_effect_",climate.mx.effect, "_nm_decade_effect_",climate.nm.effect,".png"),p.sims.quants,base_height = 12,base_width = 20)
+#ts.final <- readRDS(file = paste0(repo.loc,"/Results/NS_projections_",n.sims,"_sims_",min(years),"_to_",max(years),"_time_series_quantiles.Rds"))
+# load(file = paste0(repo.loc,"/Results/NS_projections_",n.sims,"_sims_",min(years),"_to_",max(years),
+#                          "_low_fm_input_and_results.RData"))
 
 
 
+# Some simple plots. 
+
+ggplot(ts.final) + geom_line(aes(x=Years,y=eco.num,group=sim,color=sim)) + scale_y_log10()
+#ggplot(ts.final) + geom_line(aes(x=Years,y=eco.num,group=sim,color=sim)) + scale_y_log10()
+
+ggplot(ts.final) + geom_line(aes(x=Years,y=troph.num,group=sim,color=sim)) + facet_wrap(~troph.cat) + scale_y_log10()
+
+ggplot(ts.final) + geom_line(aes(x= Years,y=abund,group=sim,color=sim)) + facet_wrap(~Stock) + scale_y_log10()
+
+
+ggplot(ts.final) + geom_line(aes(x= Years,y=fm,group=sim,color=sim)) + facet_wrap(~Stock) #+ scale_y_log10()
+
+
+p.sims <- ggplot(ts.final) + geom_line(aes(x=Years.adj,y=abund,group = sim,color=sim),alpha=0.8) + #scale_y_log10(name="Abundance")+
+                             facet_wrap(~Stock,scales = 'free_y') + scale_x_continuous(breaks = seq(2015,max(years),by=15)) 
+save_plot(paste0(repo.loc,"/Figures/low_fm_N_sims_",n.sims,"_years_",min(years),"_",max(years),"/biomass_ts.png"),p.sims,base_height = 12,base_width = 20)
+
+p.sims.quants <- ggplot(quants) + geom_line(aes(x=Years.adj,y=med,group=Stock,color=Stock)) + facet_wrap(~troph.cat,scales = 'free_y') + ylim(c(0,NA)) +
+                                  geom_ribbon(data=quants, aes(x=Years.adj,ymax=U.50,ymin = L.50),alpha=0.5,fill='blue',color='blue') +
+                                  facet_wrap(~Stock,scales = 'free_y') 
+save_plot(paste0(repo.loc,"/Figures/low_fm_N_sims_",n.sims,"_years_",min(years),"_",max(years),"/biomass_quant_ts.png"),p.sims.quants,base_height = 12,base_width = 20)
+# The ecosystem K's, the stock plot can take a minute to plot...
+ggplot(sim.eco.K) + geom_line(aes(x=Years,y=bm,group=sim,color=sim))
+ggplot(sim.troph.K) + geom_line(aes(x=Years,y=bm.tl,group=sim,color=sim)) + facet_wrap(~troph.cat)
+ggplot(sim.K.stocks) + geom_line(aes(x=Years,y=bm.stock,group=sim,color=sim)) + facet_wrap(~troph.cat+Stock) + scale_y_log10()
+# What is adjusted K doing... I think we are ok now...
+ggplot(ts.final) + geom_line(aes(x=Years,y=K.num,group=sim),color='grey') + geom_line(aes(x=Years,y=abund,group=sim),color='blue') + 
+                   facet_wrap(~troph.cat+Stock) + scale_y_log10()
+
+ts.final$ratio <- ts.final$abund/ts.final$K.num
+
+ggplot(ts.final,aes(x=Years,y=ratio)) + geom_line(aes(group=sim),color='grey') + #geom_line(aes(x=Years,y=abund,group=sim),color='blue') + 
+  facet_wrap(~troph.cat+Stock) + scale_y_log10() + geom_smooth(method='gam')
+
+
+ggplot(ts.final) + geom_histogram(aes(x=ratio),color='grey') +
+  facet_wrap(~troph.cat+Stock,scales='free_x') + xlim(c(0,2)) #+ scale_y_log10()
+
+# What does the average weight time series look like by stock
+
+ggplot(fm.dat) + geom_line(aes(x=Year,y=avg.weight)) + facet_wrap(~Stock,scale='free_y')
+# Which stocks behave oddly initially...
+windows(11,11)
+ggplot(quants) + geom_line(aes(x=Years,y=med)) + facet_wrap(~Stock,scales = 'free_y') + ylim(c(0,NA)) #+
+ggplot(ts.final) + geom_line(aes(x=Years,y=abund,group=sim)) + facet_wrap(~Stock,scales = 'free_y') + ylim(c(0,NA)) #+
+
+
+picker <- ns.stocks[12]
+
+tst.res <- ts.final[ts.final$Stock == picker,]
+tst.res$troph.cat <- as.character(tst.res$troph.cat)
+tst.K <- sim.K.stocks[sim.K.stocks$Stock == picker,]
+tst.K$K.num.stock <- tst.K$bm.stock/wgt.4.sim$wgt[wgt.4.sim$Stock == picker]
+tst.both <- left_join(tst.res,tst.K,by=c("Years","sim","Stock","troph.cat"))
+tst.both$ratio <- tst.both$abund/tst.both$K.num.stock
+
+ggplot(tst.both) + geom_text(aes(x=r,y=ratio,label=Years,group=sim))
+ggplot(tst.both) + geom_line(aes(x=Years,y=K.num.stock,group=sim)) + geom_line(aes(x=Years,y=abund,group=sim),color='blue')
+ggplot(tst.both) + geom_line(aes(x=Years,y=K.num.stock,group=sim))
