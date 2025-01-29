@@ -1,4 +1,5 @@
 # Here we develop a multi-species model for the North Sea.
+#DB - January 2025: Running a test model for GOM/GB stocks (NAFO areas 5 and 6)
 
 #################  Section 1 Loading #################  Section 1 Loading #################  Section 1 Loading  ###############################################
 library(tidyverse)
@@ -22,11 +23,14 @@ for(fun in funs)
   file.remove(paste0(getwd(),"/",basename(fun)))
 }
 
-
+#loop to load functions didn't work for me, so I sourced them instead for now
+source("C:/Users/danxb/Desktop/Uni/Grad School Winter 2025/ICM/ICM/Scripts/functions/simple_Lotka_r.r")
+source("C:/Users/danxb/Desktop/Uni/Grad School Winter 2025/ICM/ICM/Scripts/functions/simple_forward_sim.r")
+source("C:/Users/danxb/Desktop/Uni/Grad School Winter 2025/ICM/ICM/Scripts/functions/forward_project.r")
 
 #load(file = "D:/Github/ICM/Results/model_inputs.Rdata")
-dat.loc <- 'D:/GitHub/ICM'
-repo.loc <- "D:/GitHub/Multispecies_model/"
+dat.loc <- 'C:/Users/danxb/Desktop/Uni/Grad School Winter 2025/ICM/ICM'
+repo.loc <- "C:/Users/danxb/Desktop/Uni/Grad School Winter 2025/Multispecies_model"
 #loc <- "C:/Users/Owner/Documents/Github/ICM"
 load(file = paste0(dat.loc,"/Results/all_cleaned_forward_tune_summaries_fec_nm.Rdata"))
 load(file = paste0(dat.loc,"/Results/model_inputs.Rdata"))
@@ -40,8 +44,20 @@ n.sims <- 10 # The numbers of simulations to run, keeping low for testing...
 
 # Get the right stocks
 Stocks <- names(for.tune.all)
-Stocks <- Stocks[grep("NS",Stocks)]
-Stocks <- Stocks[Stocks != "ICES-WGHANSA_SP8abd_Sardina _pilchardus"]
+
+Stocks <- Stocks[grep("NEFSC", Stocks)]
+#Stocks <- Stocks[Stocks != "ICES-WGHANSA_SP8abd_Sardina _pilchardus"]
+
+#NOTE: One relevant stock does not have NEFSC in its name;"CERT-TRAC_GB_Melanogrammus_Aeglefinus"
+#unsure of how to get this into the "Stock" chr without messing up for loop on line 76
+#ATTEMPT 1 (this doesn't work because it messes up the order of the names in the Stocks chr)
+# Isolate all NAFO stocks via "NEFSC" code in name
+  #NEFSC<-Stocks[grep("NEFSC", Stocks)]
+# Isolate CERT_TRAC NAFO stock (no "NEFSC" in name, but still part of GOM/GB)
+  #CERT_TRAC_Ma_GB<-Stocks[Stocks == "CERT-TRAC_GB_Melanogrammus_Aeglefinus"]
+# Join both isolated stock groups together
+  #Stocks<-paste(CERT_TRAC_Ma_GB, NEFSC)
+
 
 
 # So here we are working to get the 'ecosystem' carrying capacity by looking at the total biomass for the NS stocks we have
