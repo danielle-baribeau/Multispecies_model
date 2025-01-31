@@ -134,7 +134,8 @@ fm.dat$exploit <- (fm.dat$rem*fm.dat$avg.weight)/fm.dat$bm.stock
 # # Autocorrelation in abundance and biomass time series for the 'ecosystem'
 K.cor <- pacf(log(bm.best$num.total))
 K.cor.bm <- pacf(log(bm.best$bm.total))
-# We see there is a decent correlation in the biomass time series, which is kinda nice, the ecosystem biomass isn't just jumping around randomly....
+# for GOM stocks, these plots look different to NS stocks; 1 big spike into + PACF before being between blue lines
+# FOR NS: We see there is a decent correlation in the biomass time series, which is kinda nice, the ecosystem biomass isn't just jumping around randomly....
 # visualizing the biomass time series, reasonable decline in the 'biomass in the early 2000s.
 ggplot(bm.best,aes(x=Year,y=bm.total)) + geom_point() + geom_line()
 # Numbers time series, one reason numbers doesn't work is the total domination by Sand Lance.
