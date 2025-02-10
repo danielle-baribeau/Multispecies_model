@@ -39,85 +39,100 @@ load(file = paste0(dat.loc,"/Results/model_inputs.Rdata"))
 
 ########################## Section 2 Parameters ########################## Section 2 Parameters ########################## Section 2 Parameters
 
-n.yrs.proj <- 25 # How many years into the future we are going to project the stocks
-n.sims <- 10 # The numbers of simulations to run, keeping low for testing...
+n.yrs.proj <- 10 # How many years into the future we are going to project the stocks
+n.sims <- 1 # The numbers of simulations to run, keeping low for testing...
 
 # Get the right stocks
-Stocks <- names(for.tune.all)
+#stocks for testing purposes
+Stocks<-c("CERT-TRAC_GB_Melanogrammus_Aeglefinus")
 
-Stocks <- Stocks[grep("NEFSC", Stocks)]
-#Stocks <- Stocks[Stocks != "ICES-WGHANSA_SP8abd_Sardina _pilchardus"]
-
-#NOTE: One relevant stock does not have NEFSC in its name;"CERT-TRAC_GB_Melanogrammus_Aeglefinus"
-#unsure of how to get this into the "Stock" chr without messing up for loop on line 76
-#ATTEMPT 1 (this doesn't work because it messes up the order of the names in the Stocks chr)
-# Isolate all NAFO stocks via "NEFSC" code in name
-  #NEFSC<-Stocks[grep("NEFSC", Stocks)]
-# Isolate CERT_TRAC NAFO stock (no "NEFSC" in name, but still part of GOM/GB)
-  #CERT_TRAC_Ma_GB<-Stocks[Stocks == "CERT-TRAC_GB_Melanogrammus_Aeglefinus"]
-# Join both isolated stock groups together
-  #Stocks<-paste(CERT_TRAC_Ma_GB, NEFSC)
+#current process for getting target GOM stocks
+#Stocks <- names(for.tune.all)
+#Stocks <- Stocks[grep("NEFSC", Stocks)]
+#Stocks <- c(Stocks, "CERT-TRAC_GB_Melanogrammus_Aeglefinus")
+#Stocks <- Stocks[Stocks != "NEFSC-GARMIII_MA_Paralichthys_dentatus"]
+#Stocks <- Stocks[Stocks != "NEFSC-GARMIII_SNE- MA_Limanda_ferruginea"]
+#Stocks <- Stocks[Stocks != "NEFSC-SAW_USATL_Stenotomus_Chrysops"]
+#Stocks <- Stocks[Stocks != "NEFSC_NWA_Scomber _scombrus"]
 
 
-
-# So here we are working to get the 'ecosystem' carrying capacity by looking at the total biomass for the NS stocks we have
+# So here we are working to get the 'ecosystem' carrying capacity by looking at the total biomass for the GOM stocks we have
 # data for over the period of time we have data for all the stocks.
 # So here we pull out the data we need to look at total abundance and total biomass in the system by year...
-years.ns <- NULL
-vpa.ns <- NULL
-bm.ns <- NULL
-num.ns <- NULL
-waa.ns <- NULL
-pnm.ns <- NULL
-rem.ns <- NULL
-mx.ns <- NULL
-am.ns <- NULL
-ages.ns <- NULL
+years.gom <- NULL
+#holds all years we have for a given stock
+vpa.gom <- NULL
+#estimated abundance from ICM
+bm.gom <- NULL
+#biomass per age per year for stocks (unclear what num column is here)
+num.gom <- NULL
+#metadata on stock, and number of individuals per age per year
+waa.gom <- NULL
+#metadata on stock, and weight at age of individuals per year (?)
+pnm.gom <- NULL
+#estimated natural mortality per age from ICM (?)
+rem.gom <- NULL
+#removals per year for stocks (?)
+mx.gom <- NULL
+#estimated reproductive output per age from ICM (?)
+am.gom <- NULL
+#proportion mature at age for stocks
+ages.gom <- NULL
+#age classes for stocks (or actual ages?)
+
 for(i in  Stocks)
 {
-  years.ns[[i]] <- years.tmp[[i]]
-  #vpa.ns[[i]] <- vpa.tmp[[i]]
-  ages.ns[[i]] <- ages.tmp[[i]]
-  num.ns[[i]] <- ASR_long |> collapse::fsubset(Stock == i & type == "Num")
-  num.ns[[i]] <- num.ns[[i]] |> collapse::fsubset(age != "tot")
-  waa.ns[[i]] <- ASR_long|> collapse::fsubset(Stock == i & type == "WA")
-  if(i == "ICES-HAWG_NS_Ammodytes_dubius") waa.ns[[i]]$value <- waa.ns[[i]]$value/1000
-  bm.ns[[i]] <- data.frame(Year = num.ns[[i]]$Year,Stock = num.ns[[i]]$Stock,age = num.ns[[i]]$age,
-                           bm = num.ns[[i]]$value*waa.ns[[i]]$value,
-                           num = num.ns[[i]]$value)
-  pnm.ns[[i]] <- 1-exp(-for.tune.all[[i]]$nm.opt)
-  mx.ns[[i]] <- for.tune.all[[i]]$fecund.opt
-  vpa.ns[[i]] <- for.tune.all[[i]]$res$est.abund
-  rem.ns[[i]] <- rem.tmp[[i]]
-  rem.ns[[i]]$Stock <- i
-  am.ns[[i]] <- am.tmp[[i]]
+  years.gom[[i]] <- years.tmp[[i]]
+  #vpa.gom[[i]] <- vpa.tmp[[i]]
+  ages.gom[[i]] <- ages.tmp[[i]]
+  num.gom[[i]] <- ASR_long |> collapse::fsubset(Stock == i & type == "Num")
+  num.gom[[i]] <- num.gom[[i]] |> collapse::fsubset(age != "tot")
+  waa.gom[[i]] <- ASR_long|> collapse::fsubset(Stock == i & type == "WA")
+  #if(i == "ICES-HAWG_NS_Ammodytes_dubius") waa.ns[[i]]$value <- waa.ns[[i]]$value/1000
+  #above line is for NS stocks
+  bm.gom[[i]] <- data.frame(Year = num.gom[[i]]$Year,Stock = num.gom[[i]]$Stock,age = num.gom[[i]]$age,
+                           bm = num.gom[[i]]$value*waa.gom[[i]]$value,
+                           num = num.gom[[i]]$value)
+  pnm.gom[[i]] <- 1-exp(-for.tune.all[[i]]$nm.opt)
+  mx.gom[[i]] <- for.tune.all[[i]]$fecund.opt
+  vpa.gom[[i]] <- for.tune.all[[i]]$res$est.abund
+  rem.gom[[i]] <- rem.tmp[[i]]
+  rem.gom[[i]]$Stock <- i
+  am.gom[[i]] <- am.tmp[[i]]
 }
 # Combine the biomass and abundance data into a dataframe
-bm.tst <- do.call("rbind",bm.ns)
+bm.tst <- do.call("rbind",bm.gom)
 # Look at the biomass and abundance in the ecosystem
+  #this removes extra metadata present in bm.tst
+  #not familiar with what this does: |>
 bm.tot <- bm.tst |> collapse::fgroup_by(Stock,Year) |> 
                     collapse::fsummarize(bm = sum(bm,na.rm=T),
                                          num = sum(num,na.rm=T))
 # The 'ecosystem' biomass and numbers
+  #combines bm and num of all stocks and reports this by year
 eco.bm <- bm.tot |> collapse::fgroup_by(Year) |> 
                     collapse::fsummarize(num = sum(num),bm = sum(bm))
 
 
 # Now we combine the ecosystem results with the stock biomass's
+  #putting bm.tot and eco.bm into one data frame
 bm.final <- left_join(bm.tot,eco.bm,by=c("Year"))
 names(bm.final) <- c("Stock","Year","bm.stock","num.stock","num.total","bm.total")
 # Get the proportion of the total biomass each stock accounts for
+  #adding this information into bm.final
 bm.final <- bm.final |> collapse::fmutate(bm.prop = bm.stock/bm.total,
                                        num.prop = num.stock/num.total)
 bm.final <- bm.final[bm.final$bm.stock > 0,]
 bm.final <- as.data.frame(bm.final)
 # This gets the average weight of individuals in each stock, we'll need this later to get an approximate exploitation rate
+  #adding this information into bm.final
 bm.final$avg.weight <- bm.final$bm.stock/bm.final$num.stock
 
 # Now we subset to the years we have data for all the stocks
 what.year <- bm.final |> collapse::fgroup_by(Stock) |> collapse::fsummarize(min = min(Year),
                                                                       max = max(Year))
 # The years we have data for all stocks
+  #storing what.year information into usable format
 first.year <- max(what.year$min)
 last.year <- min(what.year$max)
 
@@ -126,7 +141,9 @@ bm.best <- bm.final |> collapse::fsubset(Year %in% first.year:last.year & Stock 
 
 # Fix: This is not perfect way to get the past exploitation rates as the removals we have here are in numbers
 # we'll need to think about whether using the avg.weight is appropriate it does get us 'close', but I think we can do better given the data we have.
-rem.tst <- do.call("rbind",rem.ns)
+  #call removals data
+rem.tst <- do.call("rbind",rem.gom)
+  #combining other necessary inputs with removals data
 fm.dat <- left_join(bm.final,rem.tst,by=c("Stock",'Year'))
 # This is where we go from numbers to a biomass and get an exploitation rate in biomass.
 fm.dat$exploit <- (fm.dat$rem*fm.dat$avg.weight)/fm.dat$bm.stock
@@ -134,15 +151,16 @@ fm.dat$exploit <- (fm.dat$rem*fm.dat$avg.weight)/fm.dat$bm.stock
 # # Autocorrelation in abundance and biomass time series for the 'ecosystem'
 K.cor <- pacf(log(bm.best$num.total))
 K.cor.bm <- pacf(log(bm.best$bm.total))
-# for GOM stocks, these plots look different to NS stocks; 1 big spike into + PACF before being between blue lines
-# FOR NS: We see there is a decent correlation in the biomass time series, which is kinda nice, the ecosystem biomass isn't just jumping around randomly....
-# visualizing the biomass time series, reasonable decline in the 'biomass in the early 2000s.
+# for GOM stocks, ecosystem biomass is predictable from one year to the next
+  #next year's biomass is highly related to current year's biomass
+# visualizing the biomass time series
 ggplot(bm.best,aes(x=Year,y=bm.total)) + geom_point() + geom_line()
-# Numbers time series, one reason numbers doesn't work is the total domination by Sand Lance.
+# Numbers time series
 ggplot(bm.best,aes(x=Year,y=num.total)) + geom_point() + geom_line()
 
 
 # So now we can 'statistically represent the abundance and biomass carrying capacity, note we do this on the log scale
+  #why do we do this on the log scale?
 N.target.sum <- bm.best |> collapse::fsummarise(sd = sd(log(num.total)),
                                             mn = mean(log(num.total)),
                                             med = median(log(num.total)))
@@ -158,20 +176,27 @@ bm.target.sum <- bm.best |>   collapse::fsummarise(sd = sd(log(bm.total)),
 # FIX: The ICM runs in numbers, carrying capacity is probably better thought of in biomass, think of justifiable ways to get ICM in biomass
 # or logical ways to convert result of ICM to biomass (we have the weight at age, but for now doing it this way)
 K.devs <- NULL
+#not sure what kind of data this is holding
 cors <- NULL
 K.sims <- NULL
+#also not sure about this one; is this the values of K projected forwards?
+
+#fills above empty vectors
 for(i in 1:n.sims) 
 {
    K.devs[[i]] <- as.data.frame(arima.sim(list(order = c(1,0,0), ar = K.cor$acf[1]), 
                                                                  n = n.yrs.proj,
                                                                  sd = N.target.sum$sd))
   #K.devs[[i]] <- data.frame(x = rep(0,n.yrs.proj)) # Lets see what happens when it's fixed at a mean level.
-  K.sims[[i]] <- data.frame(year = 2015:2039,sim = i,num = exp(N.target.sum$med + as.numeric(K.devs[[i]]$x)))
+  K.sims[[i]] <- data.frame(year = 2015:2024,sim = i,num = exp(N.target.sum$med + as.numeric(K.devs[[i]]$x)))
 }
 
+#holds K.sims values to be plotted in code below
 K.sims.4.plt <- data.frame(do.call('rbind',K.sims))
+
 # Now does this work, lets visualize this...
 # FIX: this is not bad, only issue I have is the starting point probably should be tied to the value in 2014, so will need to think about that
+ #when running test for GOM, starting point overlaps with black line
 # The simulation was also skewing a bit high, switching from using the mean to the median when getting K.sims took care of that.
 ggplot(K.sims.4.plt,aes(x=year,y=num)) + 
                         geom_point(aes(group=sim,color=sim,fill=sim)) + geom_line(aes(group=sim,color=sim,fill=sim)) + 
@@ -179,6 +204,7 @@ ggplot(K.sims.4.plt,aes(x=year,y=num)) +
 
 # FIX: This is a simplification that we'll need to consider, we might want to make this
 # be where we figure out how to partition the biomass by trophic level.  But the moment it's ok.
+
 # For the moment, lets just cut the world up so each stock gets a fixed % of K based on their biomass
 prop.stock <- bm.final |> collapse::fgroup_by(Stock) |> collapse::fsummarize(prop = median(num.prop))
 prop.stock.bm <- bm.final |> collapse::fgroup_by(Stock) |> collapse::fsummarize(prop = median(bm.prop))
@@ -186,8 +212,12 @@ prop.stock.bm <- bm.final |> collapse::fgroup_by(Stock) |> collapse::fsummarize(
 # Now we use the total carrying capacity and the proportion of the abundance of each stock gets to get a carrying capacity of each stock
 # over the time series.
 K.stock <- NULL
+#K in abundance for each stock
 fm.stock <- NULL
+#fishing mortality at K for each stock (?)
 tmp <- NULL
+#temporary vector that holds precursor for K.stock value in for loop
+
 for(i in 1:n.sims)
 {
   tmp <- NULL
@@ -213,10 +243,10 @@ for(i in 1:n.sims)
 
 
 
-
-############### Section 4 Multi-species model of North Sea ############### Section 4 Multi-species model of North Sea ############### Section 4 Multi-species model of North Sea
+############### Section 4 Multi-species model of Gulf of Maine ############### Section 4 Multi-species model of Gulf of Maine ############### Section 4 Multi-species model of Gulf of Maine
 
 # Now we have our carrying capacity for each stock and we can get to business and running a model.
+  #unsure how these relate to the simulation
 tmp.mx <- NULL
 tmp.nm <- NULL
 tmp.mat <- NULL
@@ -235,6 +265,7 @@ years <- (last.year+1):(last.year+n.yrs.proj)
 # So everything will need to get wrapped up in a simulation loop
 for(j in 1:n.sims)
 {
+  #start time of simulation is recorded here
   st.time <- Sys.time()
   # This is getting the K for the stock for a particular simulation
   Kss <- K.stock[[j]]
@@ -246,24 +277,27 @@ for(j in 1:n.sims)
     # Obtain a sample of the correct size from the historic natural mortality and fecundities, Note
     # That in this set up this picks the fecundity and natural mortality from the 'same' year, which is 'fine', but lots of options here.
     # FIX: We could do this sample as a proper statistical sample rather than picking exactly what has been observed in the past.
-    samp <- sample(nrow(mx.ns[[s]]),n.yrs.proj,replace=T)
+      #unclear as to what this line is doing, especially the [s]
+    samp <- sample(nrow(mx.gom[[s]]),n.yrs.proj,replace=T)
+      #I'm confused on what samp is holding; currently looks like this:
+      #10 36 48 28 41 16 21 46  1 48 41 23  8 18 28 25 24 18 45 10 17 28 41 30 31
     # Historical natural mortality estimates (using our retrospective simulations)
-    prop.nat.mort <- pnm.ns[[s]] 
+    prop.nat.mort <- pnm.gom[[s]] 
     prop.nat.mort <- prop.nat.mort[samp,] # Get the sample years.
     
     # maturity ogive
     #age.mat <- am.ns[[s]]
     # Historical fecundity estimates (using our retrospective simulations)
-    mx <- mx.ns[[s]] 
+    mx <- mx.gom[[s]] 
     mx <- mx[samp,] # Get the sample years.
     # Ages, everything is calculated back to 'age 0', needed so lotka optimization 'knows' the age it's dealing with
     ages <- 0:(ncol(prop.nat.mort)-1)
     # Carrying capacity for the stocks, currently in numbers, need to think about it in biomass terms IMHO, but not there yet.
     Ks <- Kss[[s]]
     # The number of individuals (using our retrospective simulations)
-    vpa.ns  <- bm.final$num.stock[bm.final$Stock == s]
+    vpa.gom  <- bm.final$num.stock[bm.final$Stock == s]
     # Now get the final year abundance
-    N.start <- vpa.ns[length(vpa.ns)]
+    N.start <- vpa.gom[length(vpa.gom)]
     
     # Run the simulations
     tst <- simp.for.sim(years= years,
@@ -276,7 +310,7 @@ for(j in 1:n.sims)
                         sim= "project",
                         n.sims = 1,
                         K = Ks,
-                        repo='preload')
+                        repo='C:/Users/danxb/Desktop/Uni/Grad School Winter 2025/ICM/ICM')
     
 # Tidy up the output, Abundance and population growth rates
 res.ts[[s]] <- data.frame(tst$Pop[,-2],stock = s,sim= j)
