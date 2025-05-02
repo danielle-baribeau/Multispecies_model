@@ -1,11 +1,5 @@
 # Here we develop a multi-species model for the North Sea.
 
-
-# DK Notes
-# FIX For the MAESTRO work, lets simulate the ecosystem a fixed number of times, then run the population dynamics on each of these ecosystem
-# simulations, instead of simulating the ecosystem for each of the population dynamics scenarios, for example, we can simulate 1,000 
-# ecosystems.  Then, for the fishery dynamics, if we are testing 10 scenarios and simulating the population dynamics 100 times, that 
-# all happens within a set of 1000 ecosystems scenarios (so each ecosystems would have 1000 population dynamics simulations run on it in this scenario)
 #################  Section 1 Loading #################  Section 1 Loading #################  Section 1 Loading  ###############################################
 library(tidyverse)
 library(GGally)
@@ -554,7 +548,6 @@ fm.dat$exploit <- (fm.dat$rem*fm.dat$avg.weight)/fm.dat$bm.stock
 ns.mod.fit <- for.tunes |> collapse::fsubset(Stock %in% ns.stocks) 
 ns.mod.fit <- ns.mod.fit |> collapse::fgroup_by(Stock) |> collapse::fmutate(max.num = max(est.abund,na.rm=T)) |> as.data.frame()
 ns.mod.fit$prop.max <- ns.mod.fit$est.abund/ns.mod.fit$max.num
-ns.lambdas <- res.lambda.final |> collapse::fsubset(Stock %in% ns.stocks) 
 #ggplot(ns.mod.fit,aes(x=prop.max,y=log(mean.fec),group=Stock,color=Stock)) + geom_point() + geom_smooth(method = 'lm')
 #ggplot(ns.mod.fit,aes(x=prop.max,y=log(mean.nm),group=Stock,color=Stock)) + geom_point() + geom_smooth(method = 'lm')
 #ggplot(ns.mod.fit,aes(x=prop.max,y=log(lambda),group=Stock,color=Stock)) + geom_point() + geom_smooth(method = 'lm')
@@ -656,7 +649,8 @@ for(j in 1:n.sims)
       mx.samp <- NA
       nm.samp <- NA
       stock.fit <- ns.mod.fit |> collapse::fsubset(Stock == s)
-      stock.lambdas <- ns.lambdas |> collapse::fsubset(Stock == s)
+      lambdas <- res.lambda.final |> collapse::fsubset(Stock == s)
+      
       tmp.bm.last <- stock.bm.last |> collapse::fsubset(Stock == s)
       tmp.stock.K <- base.stock.K.tmp |> collapse::fsubset(Stock == s)
       fm.stock <- fm.dat |> collapse::fsubset(Stock ==s) |> collapse::fsummarize(mn = median(exploit,na.rm=T),
@@ -697,8 +691,8 @@ for(j in 1:n.sims)
         } # end If we have low years
         if(low.years == F) samp <- sample(high.bm.years,1)
         # The simple way to do it is just to sample from the natural mortality distribution
-        # Now using the right lambda, go look at trends from the stocks that are declining to see what's up there.
-        lam.samp <- stock.lambdas$lam.no.fish[samp] # Get the sample years.  
+        # FIX, THIS IS NOT THE RIGHT LAMBDA, I NEED TO USE THE LAMBDA NO-FISHING HERE.
+        lam.samp <- stock.fit$lambda[samp] # Get the sample years.  
       } # end the sample method.
       
       # Or do it the fun way...
@@ -783,7 +777,7 @@ ts.final <- do.call("rbind",ts.unpack)
 #ggplot(ts.final) + geom_line(aes(x= Years,y=abund,group=sim,color=sim)) + facet_wrap(~Stock) + scale_y_log10()
 
 
-ts.final$fm <- ts.final$removals/ts.final$abund
+#ts.final$fm <- ts.final$removals/ts.final$abund
 av.wgt$troph.cat <- as.numeric(av.wgt$troph.cat)
 ts.final <- left_join(ts.final,av.wgt,by=c("Stock","troph.cat"))
 #ts.final$biomass <- ts.final$abund*ts.final$mn.wgt
