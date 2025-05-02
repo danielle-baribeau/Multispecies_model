@@ -559,7 +559,9 @@ ns.lambdas <- res.lambda.final |> collapse::fsubset(Stock %in% ns.stocks)
 #ggplot(ns.mod.fit,aes(x=prop.max,y=log(mean.nm),group=Stock,color=Stock)) + geom_point() + geom_smooth(method = 'lm')
 #ggplot(ns.mod.fit,aes(x=prop.max,y=log(lambda),group=Stock,color=Stock)) + geom_point() + geom_smooth(method = 'lm')
 
-
+chk <- ns.lambdas |> collapse::fsubset(Stock == ns.stocks[5])
+chk.abund <- ns.mod.fit |> collapse::fsubset(Stock == ns.stocks[5])
+ggplot(chk) + geom_point(aes(y=lam.no.fish,x=chk.abund$vpa.abund[-length(chk.abund$vpa.abund)]/max(chk.abund$vpa.abund,na.rm=T)))
 ############### Section 4 Multi-species model of North Sea ############### Section 4 Multi-species model of North Sea ############### Section 4 Multi-species model of North Sea
 
 # Now we have our carrying capacity for each stock and we can get to business and running a model.
@@ -709,21 +711,21 @@ for(j in 1:n.sims)
         {
           if(length(low.bm.years) >0)
           {
-          lam.mn <- median(stock.fit$lambda[low.bm.years],na.rm=T)
-          lam.sd <- sd(log(stock.fit$lambda[low.bm.years]),na.rm=T)
+          lam.mn <- median(stock.lambdas$lam.no.fish[low.bm.years],na.rm=T)
+          lam.sd <- sd(log(stock.lambdas$lam.no.fish[low.bm.years]),na.rm=T)
           }
           if(length(low.bm.years) ==0)
           {
-            lam.mn <- mean(stock.fit$lambda,na.rm=T)
-            lam.sd <- sd(log(stock.fit$lambda),na.rm=T)
+            lam.mn <- mean(stock.lambdas$lam.no.fish,na.rm=T)
+            lam.sd <- sd(log(stock.lambdas$lam.no.fish),na.rm=T)
           }
           lam.samp <- rlnorm(1,log(lam.mn),lam.sd)
         } # end if(bm.start < low.vs.high.bm) 
         
         if(bm.start >= low.vs.high.bm & bm.start < cur.K) 
         {
-          lam.mn <- median(stock.fit$lambda[high.bm.years],na.rm=T)
-          lam.sd <- sd(log(stock.fit$lambda[high.bm.years]),na.rm=T)
+          lam.mn <- median(stock.lambdas$lam.no.fish[high.bm.years],na.rm=T)
+          lam.sd <- sd(log(stock.lambdas$lam.no.fish[high.bm.years]),na.rm=T)
           lam.samp <- rlnorm(1,log(lam.mn),lam.sd)
           
         } # end if(bm.start < low.vs.high.bm) 
@@ -731,14 +733,13 @@ for(j in 1:n.sims)
       } # end if(method != "sample")
       while(is.na(lam.samp)) lam.samp <- rlnorm(1,log(lam.mn),lam.sd)
       # Final one, if we are above the K, then our lambda is even lower
-      # using the 10% quantile (instead of the median) of the data below the high biomass years value
-      # with the same uncertainty as that. This probably gives too many high growth years above K, but it
-      # really depends on the 10% quantile and the standard deviation.
+      # FIX" But how to do this, it is a very influential decision in terms of the dynamics
+      # for the stocks, we'll need to discuss this one!
       if(bm.start > cur.K) 
       {
-        lam.mn <- quantile(stock.fit$lambda[high.bm.years],probs = 0.1,na.rm=T)
-        lam.sd <- sd(log(stock.fit$lambda[high.bm.years]),na.rm=T)
-        lam.samp <- rlnorm(1,log(lam.mn),lam.sd)
+        lam.mn <- quantile(stock.lambdas$lam.no.fish[high.bm.years],probs = 0.1,na.rm=T)
+        lam.sd <- sd(log(stock.lambdas$lam.no.fish[high.bm.years]),na.rm=T)
+        lam.samp <- 0.9#rlnorm(1,log(lam.mn),lam.sd)
       }
       #while(is.na(lam.samp)) lam.samp <- rlnorm(1,log(lam.mn),lam.sd)
       
