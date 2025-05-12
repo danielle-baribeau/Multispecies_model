@@ -2,16 +2,28 @@
 
 
 # DK Notes
-# FIX For the MAESTRO work, lets simulate the ecosystem a fixed number of times, then run the population dynamics on each of these ecosystem
-# simulations, instead of simulating the ecosystem for each of the population dynamics scenarios, for example, we can simulate 1,000 
-# ecosystems.  Then, for the fishery dynamics, if we are testing 10 scenarios and simulating the population dynamics 100 times, that 
-# all happens within a set of 1000 ecosystems scenarios (so each ecosystems would have 1000 population dynamics simulations run on it in this scenario)
-#################  Section 1 Loading #################  Section 1 Loading #################  Section 1 Loading  ###############################################
+
+#1: stocks:     # historical estimates, realized lambdas, and trophic levels for each stock in your ecosystem, should be a list
+#                 with each stocks being a names list, with the name of the list being a unqiue stock name.
+#2 lambdas:     # Lambda estimates from the LTR model run
+#3: n.yrs.proj  # How many years into the future we are going to project the stocks
+#4: n.sims      # The numbers of simulations to run, keeping low for testing...
+#5: er.mn       # Average exploitation rate for the fishery for each stock, set up to be proportional 
+#               # Should be the same length as the number of stocks. Defaults to NULL, which is no exploitation
+#6: er.sd       # standard deviation of exploitation rate for the fishery for each stock, set up to be proportional 
+#               # Should be the same length as the number of stocks. Defaults to NULL, which is no uncertainty
+#7: repo.loc    # Location of the Github repo, defaults to "D:/GitHub/Multispecies_model/"
+
+
+trophic.mod<-function(stocks = NULL,lambdas= NULL,n.yrs.proj = 50, n.sims = 20,er.mn = NULL,er.sd = NULL,
+                      repo.loc = "D:/GitHub/Multispecies_model/")
+{
+stock.eco <- names(stocks)
+
 library(tidyverse)
 library(GGally)
 library(cowplot)
 library(ggthemes)
-library(rfishbase)
 library(boot)
 # Set the base plot theme
 theme_set(theme_few(base_size = 22))
@@ -30,129 +42,48 @@ for(fun in funs)
   file.remove(paste0(getwd(),"/",basename(fun)))
 }
 
-# Want the local version for now...
-#source("D:/Github/ICM/Scripts/functions/simple_forward_sim.r")
-source("D:/Github/ICM/Scripts/functions/simple_forward_sim.r")
-
-
-#load(file = "D:/Github/ICM/Results/model_inputs.Rdata")
-#dat.loc <- 'D:/GitHub/ICM'
-#repo.loc <- "D:/GitHub/Multispecies_model/"
-dat.loc <- 'D:/GitHub/ICM'
-repo.loc <- "D:/GitHub/Multispecies_model/"
-#loc <- "C:/Users/keithd/Documents/Github/ICM"
-load(file = paste0(dat.loc,"/Results/all_cleaned_forward_tune_summaries_no_age_corection_fec_nm.Rdata"))
-load(file = paste0(dat.loc,"/Results/model_inputs_no_age_correction.Rdata"))
-
-########################### End Section 1 Loading  ###################################### End Section 1 Loading ###############################################
 
 ########################## Section 2 Parameters ########################## Section 2 Parameters ########################## Section 2 Parameters
-
-n.yrs.proj <- 50 # How many years into the future we are going to project the stocks
-n.sims <- 20 # The numbers of simulations to run, keeping low for testing...
-
-# We've spelt the name of Turbot wrong and the name of arrow-tooth flounder. Tidy up of other names because of spaces and capitialization.
-ASR.long$Genus[ASR.long$Genus == 'Scopthalmus'] <- "Scophthalmus" 
-ASR.long$Genus[ASR.long$Genus == 'clupea'] <- "Clupea" 
-ASR.long$Genus[ASR.long$Genus == ' Hippoglossoides'] <- "Hippoglossoides" 
-ASR.long$Genus[ASR.long$Genus == 'Hippoglossoides '] <- "Hippoglossoides" 
-ASR.long$Genus[ASR.long$Genus == 'Scomber '] <- "Scomber" 
-ASR.long$Genus[ASR.long$Genus == 'Dicentrarchus '] <- "Dicentrarchus" 
-ASR.long$Genus[ASR.long$Genus == 'Pollachius '] <- "Pollachius" 
-ASR.long$Genus[ASR.long$Genus == 'Sardina '] <- "Sardina" 
-ASR.long$Species[ASR.long$Species == 'Aeglefinus'] <- "aeglefinus" 
-ASR.long$Species[ASR.long$Species == 'Chrysops'] <- "chrysops" 
-ASR.long$Species[ASR.long$Species == ' harengus'] <- "harengus" 
-ASR.long$Species[ASR.long$Species == 'stomais'] <- "stomias" 
-ASR.long$Species[ASR.long$Species == 'Solea'] <- "solea" 
-ASR.long$Gen.Spec <- paste(ASR.long$Genus,ASR.long$Species,sep=' ')
-
-
-# Get the right stocks
-Stocks <- names(for.tune.all)
-ns.stocks <- Stocks[grep("NS",Stocks)]
-ns.stocks <- ns.stocks[ns.stocks != "ICES-WGHANSA_SP8abd_Sardina _pilchardus"]
-
-# Get the trophic levels from Fishbase
-
-gen.spec <- unique(paste(ASR.long$Genus,ASR.long$Species,sep=" "))
-
-
-# In fishbase "Limanda ferruginea" is Myzopsetta ferruginea, so add that, then change the name back to what we've been using.  Seems both are in use but Limanda feels more common.
-# here's the trophic levels from Fishbase, looks like we have 2 trophic levels with 5 species in each
-all.troph <- ecology(c(gen.spec,"Myzopsetta ferruginea"), fields=c("Species","SpecCode", "FoodTroph", "FoodSeTroph", "DietTroph", "DietSeTroph"))
-all.troph$Species[all.troph$Species == "Myzopsetta ferruginea"] <- "Limanda ferruginea"
-
-# A few species pop up multple times for some reason
-mutli.entries <- names(which(table(all.troph$Species) > 1))
-# Clean up the multiple entries
-if(length(mutli.entries) > 0)
-{
-  drop <- NULL
-  for(i in 1:length(mutli.entries))
-    drop[[i]] <- which(all.troph$Species == mutli.entries[i])[-1] # Drop all but the first one
-}
-drop <- do.call('c',drop)
-
-all.troph <- all.troph[-drop,]
-# ns.troph <- all.troph |> collapse::fsubset(Species %in% gen.spec)
-# Add the trophic level information to ASR.long
-ASR.long <- left_join(ASR.long,all.troph,by = join_by(Gen.Spec==Species))
-
-# Trophic levels from Simon Jennings Paper in 2002 for NS...or fishbase if not in Jennings (e.g. lesser sand eel and Turbot)
-ns.troph <- data.frame(Stock = ns.stocks,
-                       Common = c("Herring","Lesser Sand eel","Sole","Atlantic cod",
-                                  "Haddock","European plaice","Norway pout","Saithe",
-                                  "Atlantic cod", "Whiting", "Sole", "European plaice","Turbot","Sole"),
-                       TL = c(3.8,3.08,5.0,5.2,
-                              4.7,4.5,4.2,4.6,
-                              5.2,5.3,5.0,4.5,4.4,5.0))
 
 # So here we are working to get the 'ecosystem' carrying capacity by looking at the total biomass for the NS stocks we have
 # data for over the period of time we have data for all the stocks.
 # So here we pull out the data we need to look at total abundance and total biomass in the system by year...
-years.ns <- NULL
-vpa.ns <- NULL
-bm.ns <- NULL
-num.ns <- NULL
-waa.ns <- NULL
-pnm.ns <- NULL
-rem.ns <- NULL
-mx.ns <- NULL
-am.ns <- NULL
-ages.ns <- NULL
-rem.ns.age <-NULL
-for(s in  ns.stocks)
+years <- NULL
+vpa <- NULL
+bm <- NULL
+num <- NULL
+waa <- NULL
+pnm <- NULL
+mx <- NULL
+ages <- NULL
+rem.age <- NULL
+for(s in  stock.eco)
 {
-  years.ns[[s]] <- years.tmp[[s]]
-  #vpa.ns[[s]] <- vpa.tmp[[s]]
-  ages.ns[[s]] <- ages.tmp[[s]]
-
-  num.ns[[s]] <- ASR.long |> collapse::fsubset(Stock == s & type == "Num")
-  num.ns[[s]] <- num.ns[[s]] |> collapse::fsubset(age != "tot")
-  waa.ns[[s]] <- ASR.long|> collapse::fsubset(Stock == s & type == "WA")
-  rem.ns.age[[s]] <- ASR.long|> collapse::fsubset(Stock == s & type == "Catch")
-  tl <- ns.troph |> collapse::fsubset(Stock == s)
-  if(s == "ICES-HAWG_NS_Ammodytes_tobianus") waa.ns[[s]]$value <- waa.ns[[s]]$value/1000
-  bm.ns[[s]] <- data.frame(Year = num.ns[[s]]$Year,Stock = num.ns[[s]]$Stock,age = num.ns[[s]]$age,
-                           bm = num.ns[[s]]$value*waa.ns[[s]]$value,
-                           catch.num = rem.ns.age[[s]]$value,
-                           catch.bm = rem.ns.age[[s]]$value*waa.ns[[s]]$value,
-                           num = num.ns[[s]]$value,
-                           trophic = tl$TL,
-                           troph.cat = as.character(floor(tl$TL)),
-                           Species = num.ns[[s]]$Gen.Spec)
+  years[[s]] <- eco.lambdas[[s]]$year
+  #vpa[[s]] <- vpa.tmp[[s]]
+  ages[[s]] <- eco.lambdas[[s]]$age.min[1]:eco.lambdas[[s]]$age.max[1]
+  num[[s]] <- stocks[[s]] |> collapse::fsubset(type == "Num")
+  num[[s]] <- num[[s]] |> collapse::fsubset(age != "tot")
+  waa[[s]] <- stocks[[s]]|> collapse::fsubset(type == "WA")
+  rem.age[[s]] <- stocks[[s]]|> collapse::fsubset(type == "Catch")
+  tl <- rep(unique(stocks[[s]]$TL),nrow(rem.age[[s]]))
+  if(s == "ICES-HAWG_NS_Ammodytes_tobianus") waa[[s]]$value <- waa[[s]]$value/1000
+  bm[[s]] <- data.frame(Year = num[[s]]$Year,Stock = num[[s]]$Stock,age = num[[s]]$age,
+                           bm = num[[s]]$value*waa[[s]]$value,
+                           catch.num = rem.age[[s]]$value,
+                           catch.bm = rem.age[[s]]$value*waa[[s]]$value,
+                           num = num[[s]]$value,
+                           trophic = tl,
+                           troph.cat = as.character(floor(tl)),
+                           Species = num[[s]]$Gen.Spec)
   #Need to clip out the years we don't have biomass data for...
-  bm.ns[[s]] <- bm.ns[[s]] |> collapse::fsubset(Year %in% years.ns[[s]])
-  pnm.ns[[s]] <- 1-exp(-for.tune.all[[s]]$nm.opt)
-  mx.ns[[s]] <- for.tune.all[[s]]$fecund.opt
-  vpa.ns[[s]] <- for.tune.all[[s]]$res$est.abund
-  rem.ns[[s]] <- rem.tmp[[s]]
-  rem.ns[[s]]$Stock <- s
-  am.ns[[s]] <- am.tmp[[s]]
-} # end for(s in  ns.stocks)
+  bm[[s]] <- bm[[s]] |> collapse::fsubset(Year %in% years[[s]])
+  #pnm[[s]] <- 1-exp(-lambdas[[s]]$nm.opt)
+  #mx[[s]] <- lambdas[[s]]$fecund.opt
+  vpa[[s]] <- lambdas[[s]]$res$est.abund
+} # end for(s in  stock.eco)
 # Combine the biomass and abundance data into a dataframe
-bm.tst <- do.call("rbind",bm.ns)
+bm.tst <- do.call("rbind",bm)
 
 
 # Look at the biomass and abundance in the ecosystem
@@ -193,6 +124,7 @@ bm.final <- bm.final |> collapse::fmutate(prop.bm.stock.eco = bm.stock/bm.eco,
 # Remove 0s from the data
 bm.final <- bm.final[bm.final$bm.stock > 0,]
 bm.final <- as.data.frame(bm.final)
+bm.final$troph.cat <- as.numeric(bm.final$troph.cat)
 # This gets the average weight of individuals in each stock, we'll need this later to get an approximate exploitation rate
 bm.final$avg.weight <- bm.final$bm.stock/bm.final$num.stock
 
@@ -207,11 +139,11 @@ n.years <- length(first.year:last.year)
 bm.best <- bm.final |> collapse::fsubset(Year %in% first.year:last.year) 
 
 # Biomass by trophic level over time
-bm.tl.plt <- ggplot(bm.best) + geom_line(aes(x=Year,y=bm.tl,group=troph.cat,color=troph.cat)) + 
+bm.tl.plt <- ggplot(bm.best) + geom_line(aes(x=Year,y=bm.tl,group=as.character(troph.cat),color=as.character(troph.cat))) + 
   scale_color_manual(values = c("blue","red","darkgrey","lightgreen")) + scale_y_log10(name="Biomass")
 save_plot(paste0(repo.loc,"/Figures/Biomass_by_trophic_level.png"),bm.tl.plt,base_height = 8,base_width = 11)
 # This is real good now...
-prop.bm.tl.plt <- ggplot(bm.best) + geom_line(aes(x=Year,y=prop.bm.tl,group=troph.cat,color=troph.cat)) + 
+prop.bm.tl.plt <- ggplot(bm.best) + geom_line(aes(x=Year,y=prop.bm.tl,group=as.character(troph.cat),color=as.character(troph.cat))) + 
   scale_color_manual(values = c("blue","red","darkgrey","lightgreen")) + 
   scale_y_continuous(name="Proportion of Biomass")
 save_plot(paste0(repo.loc,"/Figures/Prop_biomass_by_trophic_level.png"),prop.bm.tl.plt,base_height = 8,base_width = 11)
@@ -490,7 +422,7 @@ for(i in 1:n.sims)
       if(count == 2 & n.stock.tl == 2) 
       {
         sim.Ks[[s]] <-  data.frame(Years = 1:n.yrs.proj, sim=i,
-                                   Stock = s, troph.cat = tl,
+                                   Stock = s, troph.cat = as.numeric(tl),
                                    bm.stock = (1-tmp.prop.bm)*bm.trophic.Ks[[i]]$bm.tl[bm.trophic.Ks[[i]]$troph.cat==tl])
       } # end the case of just 2 stocks
     } # end the stocks loop
@@ -537,7 +469,7 @@ save_plot(filename = paste0(repo.loc,"/Figures/Simulation_eco_K.png"),sim.eco.K.
 # # And still has characteristics we want
 # pacf(tst2$eco.bm.new[tst2$sim == 1][1:n.yrs.proj])
 # # OK I think we're good to here, have simulated biomass time series :-)
-ggplot(sim.K.stocks |> collapse::fsubset(sim == 1)) + geom_line(aes(x=Years,y=bm.stock,group=Stock,color=troph.cat)) + scale_y_log10()
+#ggplot(sim.K.stocks |> collapse::fsubset(sim == 1)) + geom_line(aes(x=Years,y=bm.stock,group=Stock,color=troph.cat)) + scale_y_log10()
 # ggplot(bm.best) + geom_line(aes(x=Year,y=bm.stock,group=Stock,color=troph.cat))+ scale_y_log10()
 
 
@@ -545,23 +477,19 @@ ggplot(sim.K.stocks |> collapse::fsubset(sim == 1)) + geom_line(aes(x=Years,y=bm
 # Fix: This is not perfect way to get the past exploitation rates as the removals we have here are in numbers
 # Give we have the database with the age specific removals and age specific weights, this
 # should be tweaked to use that data. That said, for the moment this should be 'good enough' 
-rem.tst <- do.call("rbind",rem.ns)
-fm.dat <- left_join(bm.best,rem.tst,by=c("Stock",'Year'))
+#rem.tst <- do.call("rbind",rem)
+#fm.dat <- left_join(bm.best,rem.tst,by=c("Stock",'Year'))
 # This is where we go from numbers to a biomass and get an exploitation rate in biomass.
-fm.dat$exploit <- (fm.dat$rem*fm.dat$avg.weight)/fm.dat$bm.stock
+#fm.dat$exploit <- (fm.dat$rem*fm.dat$avg.weight)/fm.dat$bm.stock
+# Extract the LTR results.
+mod.fit <- NULL
+for(s in stock.eco) 
+{
+  mod.fit[[s]] <- lambdas[[s]]$res
+  mod.fit[[s]]$max.num <- max(mod.fit[[s]]$est.abund,na.rm=T)
+  mod.fit[[s]]$prop.max <-  mod.fit[[s]]$est.abund/mod.fit[[s]]$max.num
+}
 
-# Extract the north sea results.
-ns.mod.fit <- for.tunes |> collapse::fsubset(Stock %in% ns.stocks) 
-ns.mod.fit <- ns.mod.fit |> collapse::fgroup_by(Stock) |> collapse::fmutate(max.num = max(est.abund,na.rm=T)) |> as.data.frame()
-ns.mod.fit$prop.max <- ns.mod.fit$est.abund/ns.mod.fit$max.num
-ns.lambdas <- res.lambda.final |> collapse::fsubset(Stock %in% ns.stocks) 
-#ggplot(ns.mod.fit,aes(x=prop.max,y=log(mean.fec),group=Stock,color=Stock)) + geom_point() + geom_smooth(method = 'lm')
-#ggplot(ns.mod.fit,aes(x=prop.max,y=log(mean.nm),group=Stock,color=Stock)) + geom_point() + geom_smooth(method = 'lm')
-#ggplot(ns.mod.fit,aes(x=prop.max,y=log(lambda),group=Stock,color=Stock)) + geom_point() + geom_smooth(method = 'lm')
-
-chk <- ns.lambdas |> collapse::fsubset(Stock == ns.stocks[5])
-chk.abund <- ns.mod.fit |> collapse::fsubset(Stock == ns.stocks[5])
-ggplot(chk) + geom_point(aes(y=lam.no.fish,x=chk.abund$vpa.abund[-length(chk.abund$vpa.abund)]/max(chk.abund$vpa.abund,na.rm=T)))
 ############### Section 4 Multi-species model of North Sea ############### Section 4 Multi-species model of North Sea ############### Section 4 Multi-species model of North Sea
 
 # Now we have our carrying capacity for each stock and we can get to business and running a model.
@@ -573,20 +501,21 @@ ts.unpack <- NULL
 years <- (last.year+1):(last.year+n.yrs.proj)
 # Take the biomass data for the north sea and subset it to the years we have data
 bm.mod.yrs <- bm.tst |> collapse::fsubset(Year %in% first.year:last.year)
-bm.2014 <- bm.mod.yrs |> collapse::fsubset(Year == last.year) |> 
+bm.start.year <- bm.mod.yrs |> collapse::fsubset(Year == last.year) |> 
                          collapse::fgroup_by(Stock,trophic,troph.cat,Species) |> 
                          collapse::fsummarise(bm.tot = sum(bm,na.rm=T))
 # Get the initial ecosystem biomass..
-init.eco.bm <- sum(bm.2014$bm.tot)
-init.tl.bm <- bm.2014 |> collapse::fgroup_by(troph.cat) |> collapse::fsummarise(bm.tl = sum(bm.tot))
-init.stock.bm <- bm.2014
+init.eco.bm <- sum(bm.start.year$bm.tot)
+init.tl.bm <- bm.start.year |> collapse::fgroup_by(troph.cat) |> collapse::fsummarise(bm.tl = sum(bm.tot))
+init.stock.bm <- bm.start.year
 # Get the average weight of the fish in the stocks so we can go from biomass to abundance for the model
 # FIX: NOT SURE I NEED THIS ANYMORE This could definitely be done more sophisisticatedly!
-av.wgt <- fm.dat |> collapse::fgroup_by(Stock,troph.cat) |> collapse::fsummarise(mn.wgt = mean(avg.weight,na.rm=T))
+av.wgt <- bm.best |> collapse::fgroup_by(Stock,troph.cat) |> collapse::fsummarise(mn.wgt = mean(avg.weight,na.rm=T))
 # FIX: NOT SURE I NEED THIS ANYMORE Let's try getting the most recent year weight to go from biomass to numbers as average may be somewhat misleading
 # So here the idea is that the most recent years 
-av.wgt <- fm.dat |> dplyr::group_by(Stock,troph.cat) |> filter(row_number() >= (n() ))
-av.wgt <- data.frame(Stock = av.wgt$Stock,troph.cat = av.wgt$troph.cat,mn.wgt = av.wgt$avg.weight)
+av.wgt <- bm.best |> dplyr::group_by(Stock,troph.cat) |> filter(row_number() >= (n() ))
+av.wgt <- data.frame(Stock = av.wgt$Stock,troph.cat = as.numeric(av.wgt$troph.cat),mn.wgt = av.wgt$avg.weight)
+
 
 # So everything will need to get wrapped up in a simulation loop
 for(j in 1:n.sims)
@@ -612,7 +541,7 @@ for(j in 1:n.sims)
     {
       # Use the handy av.wgt data.frame I made above
       bm.stocks <- data.frame(bm = NA,meta.dat)
-      for(s in ns.stocks) bm.stocks$bm[bm.stocks$Stock == s] <- res.ts[[s]]$bm[res.ts[[s]]$Years == t-1]
+      for(s in stock.eco) bm.stocks$bm[bm.stocks$Stock == s] <- res.ts[[s]]$bm[res.ts[[s]]$Years == t-1]
       bm.stocks$bm <- bm.stocks$bm
       stock.bm.last <- bm.stocks
       eco.bm.last <- sum(bm.stocks$bm)
@@ -652,25 +581,24 @@ for(j in 1:n.sims)
             base.eco.K <- rbind(base.eco.K,base.eco.K.tmp)
             } # end the else...
 
-  for(s in ns.stocks)
+  for(s in stock.eco)
   {
       # Reset samples
-      mx.samp <- NA
-      nm.samp <- NA
-      stock.fit <- ns.mod.fit |> collapse::fsubset(Stock == s)
-      stock.lambdas <- ns.lambdas |> collapse::fsubset(Stock == s)
+      
+      stock.fit <- mod.fit[[s]] 
+      stock.lambdas <- lambdas[[s]] 
       tmp.bm.last <- stock.bm.last |> collapse::fsubset(Stock == s)
       tmp.stock.K <- base.stock.K.tmp |> collapse::fsubset(Stock == s)
-      fm.stock <- fm.dat |> collapse::fsubset(Stock ==s) |> collapse::fsummarize(mn = median(exploit,na.rm=T),
-                                                                     sd = sd(log(exploit[exploit > 0]),na.rm=T))
       bm.ts.stock <- bm.final[bm.final$Stock == s,]  
       
       # Now get the final year bm
       if(t == 1) 
-      {
-        bm.start <- bm.ts.stock$bm.stock[bm.ts.stock$Year == 2014]
-        res.ts[[s]] <- data.frame(bm = bm.start,removals = NA,Stock = s,sim= j,lambda = NA,Years=t-1,
-                                  troph.cat = floor(ns.troph$TL[ns.troph$Stock ==s]),
+      { 
+        
+        bm.start <- bm.ts.stock$bm.stock[bm.ts.stock$Year == last.year]
+        res.ts[[s]] <- data.frame(bm = bm.start,catch = NA,ex.rate = NA,
+                                  Stock = s,sim= j,lambda = NA,Years=t-1,
+                                  troph.cat = as.numeric(unique(bm.tot$troph.cat[bm.tot$Stock ==s])),
                                   K.bm = NA)
         
       } else{ bm.start <- res.ts[[s]]$bm[res.ts[[s]]$Years == t-1]}
@@ -743,17 +671,27 @@ for(j in 1:n.sims)
       }
       #while(is.na(lam.samp)) lam.samp <- rlnorm(1,log(lam.mn),lam.sd)
       
-# For the moment Catch isn't set up at all.      
-catch <- 0
+# Simple way to include catch
+
+if(is.null(er.mn)) {ex.rate = 0; ex.sd = 0}
+if(!is.null(er.mn))
+{
+  ex.rate = er.mn$ex.mn[er.mn$Stock == s]
+  ex.sd = er.sd$ex.sd[er.sd$Stock == s]
+}
+#browser()
+er <- rlnorm(1,log(ex.rate),ex.sd)
+catch <- bm.start*er
 #lam.samp <- rlnorm(1,log(1),0.1)
 tst.res <- (lam.samp)*bm.start - catch
 # Or do we want to grow after catch
 #tst.res <- lam.samp*(bm.start - catch)
      
 # Because I'm only doing this one year at a time, there's something in here I need to mess around with to get the output tidy...
-res.ts[[s]] <- rbind(res.ts[[s]] ,data.frame(bm = tst.res,removals =catch,
+
+res.ts[[s]] <- rbind(res.ts[[s]] ,data.frame(bm = tst.res,catch =catch,ex.rate = er,
                                              Stock = s,sim= j,lambda = lam.samp,Years=t,
-                                             troph.cat = floor(ns.troph$TL[ns.troph$Stock ==s]),
+                                             troph.cat = as.numeric(unique(bm.tot$troph.cat[bm.tot$Stock ==s])),
                                              K.bm = tmp.stock.K$adj.K))
 #if(tst$r$r[1] > 14) stop("WTF")
 #abund.new[[s]] <- data.frame(abund = tst$Pop$abund[2])
@@ -784,8 +722,8 @@ ts.final <- do.call("rbind",ts.unpack)
 #ggplot(ts.final) + geom_line(aes(x= Years,y=abund,group=sim,color=sim)) + facet_wrap(~Stock) + scale_y_log10()
 
 
-ts.final$fm <- ts.final$removals/ts.final$abund
-av.wgt$troph.cat <- as.numeric(av.wgt$troph.cat)
+#ts.final$fm <- ts.final$removals/ts.final$abund
+#av.wgt$troph.cat <- as.numeric(av.wgt$troph.cat)
 ts.final <- left_join(ts.final,av.wgt,by=c("Stock","troph.cat"))
 #ts.final$biomass <- ts.final$abund*ts.final$mn.wgt
 #r.final <- do.call("rbind",r.unpack)
@@ -796,7 +734,6 @@ quants <- ts.final |>  collapse::fgroup_by(Years,Stock,troph.cat) |> collapse::f
                                                                           #fml.50 = quantile(fm,probs=c(0.25),na.rm=T),
                                                                           #fm = median(fm,na.rm=T),
                                                                           #fmu.50 = quantile(fm,probs=c(0.75),na.rm=T))
-
 
 ts.final <- left_join(ts.final,meta.dat,by = c("Stock","troph.cat"))
 quants <- left_join(quants,meta.dat,by = c("Stock","troph.cat"))
@@ -845,7 +782,10 @@ save_plot(paste0(repo.loc,"/Figures/Quantile_biomass_trends.png"),p.sims.quants,
 
 
 
-ggplot(bm.best) + geom_line(aes(x=Year,y=prop.bm.stock.tl,group = Stock,color=spec.tl),linewidth=2) + 
-  facet_wrap(~troph.cat) + guides(colour = guide_legend(nrow = 5)) + theme(legend.position = 'top') +
-  scale_y_log10(name= "Proportion of biomass",n.breaks=10) + scale_x_continuous(name="",labels = c(1990,2000,2010),breaks=c(1990,2000,2010))+
-  scale_color_manual(values=pal)
+# ggplot(bm.best) + geom_line(aes(x=Year,y=prop.bm.stock.tl,group = Stock,color=spec.tl),linewidth=2) + 
+#   facet_wrap(~troph.cat) + guides(colour = guide_legend(nrow = 5)) + theme(legend.position = 'top') +
+#   scale_y_log10(name= "Proportion of biomass",n.breaks=10) + scale_x_continuous(name="",labels = c(1990,2000,2010),breaks=c(1990,2000,2010))+
+#   scale_color_manual(values=pal)
+
+
+} # end function
