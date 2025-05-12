@@ -8,10 +8,15 @@
 #2 lambdas:     # Lambda estimates from the LTR model run
 #3: n.yrs.proj  # How many years into the future we are going to project the stocks
 #4: n.sims      # The numbers of simulations to run, keeping low for testing...
+#5: er.mn       # Average exploitation rate for the fishery for each stock, set up to be proportional 
+#               # Should be the same length as the number of stocks. Defaults to NULL, which is no exploitation
+#6: er.sd       # standard deviation of exploitation rate for the fishery for each stock, set up to be proportional 
+#               # Should be the same length as the number of stocks. Defaults to NULL, which is no uncertainty
+#7: repo.loc    # Location of the Github repo, defaults to "D:/GitHub/Multispecies_model/"
 
 
-
-trophic.mod<-function(stocks = NULL,lambdas= NULL,n.yrs.proj = 50, n.sims = 20,repo.loc = "D:/GitHub/Multispecies_model/")
+trophic.mod<-function(stocks = NULL,lambdas= NULL,n.yrs.proj = 50, n.sims = 20,er.mn = NULL,er.sd = NULL,
+                      repo.loc = "D:/GitHub/Multispecies_model/")
 {
 stock.eco <- names(stocks)
 
@@ -579,8 +584,7 @@ for(j in 1:n.sims)
   for(s in stock.eco)
   {
       # Reset samples
-      #mx.samp <- NA
-      #nm.samp <- NA
+      
       stock.fit <- mod.fit[[s]] 
       stock.lambdas <- lambdas[[s]] 
       tmp.bm.last <- stock.bm.last |> collapse::fsubset(Stock == s)
@@ -592,7 +596,8 @@ for(j in 1:n.sims)
       { 
         
         bm.start <- bm.ts.stock$bm.stock[bm.ts.stock$Year == last.year]
-        res.ts[[s]] <- data.frame(bm = bm.start,removals = NA,Stock = s,sim= j,lambda = NA,Years=t-1,
+        res.ts[[s]] <- data.frame(bm = bm.start,catch = NA,ex.rate = NA,
+                                  Stock = s,sim= j,lambda = NA,Years=t-1,
                                   troph.cat = as.numeric(unique(bm.tot$troph.cat[bm.tot$Stock ==s])),
                                   K.bm = NA)
         
@@ -666,8 +671,17 @@ for(j in 1:n.sims)
       }
       #while(is.na(lam.samp)) lam.samp <- rlnorm(1,log(lam.mn),lam.sd)
       
-# For the moment Catch isn't set up at all.      
-catch <- 0
+# Simple way to include catch
+
+if(is.null(er.mn)) {ex.rate = 0; ex.sd = 0}
+if(!is.null(er.mn))
+{
+  ex.rate = er.mn$ex.mn[er.mn$Stock == s]
+  ex.sd = er.sd$ex.sd[er.sd$Stock == s]
+}
+#browser()
+er <- rlnorm(1,log(ex.rate),ex.sd)
+catch <- bm.start*er
 #lam.samp <- rlnorm(1,log(1),0.1)
 tst.res <- (lam.samp)*bm.start - catch
 # Or do we want to grow after catch
@@ -675,7 +689,7 @@ tst.res <- (lam.samp)*bm.start - catch
      
 # Because I'm only doing this one year at a time, there's something in here I need to mess around with to get the output tidy...
 
-res.ts[[s]] <- rbind(res.ts[[s]] ,data.frame(bm = tst.res,removals =catch,
+res.ts[[s]] <- rbind(res.ts[[s]] ,data.frame(bm = tst.res,catch =catch,ex.rate = er,
                                              Stock = s,sim= j,lambda = lam.samp,Years=t,
                                              troph.cat = as.numeric(unique(bm.tot$troph.cat[bm.tot$Stock ==s])),
                                              K.bm = tmp.stock.K$adj.K))

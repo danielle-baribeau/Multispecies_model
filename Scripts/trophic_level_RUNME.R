@@ -89,6 +89,9 @@ for(s in names(for.tune.all)) if(s %in% eco.stocks) eco.lambdas[[s]] <- res.lamb
 # ASR.long <- left_join(ASR.long,all.troph,by = join_by(Gen.Spec==Species))
 
 # Try the function
+exploit.mn <- data.frame(ex.mn = rep(0.1,length(stock.lst)),Stock = names(stock.lst))
+exploit.sd <- data.frame(ex.sd = rep(0.1,length(stock.lst)),Stock = names(stock.lst))
 
-test <- trophic.mod(stocks = stock.lst,lambdas= eco.lambdas,n.sims=100)
+test <- trophic.mod(stocks = stock.lst,lambdas= eco.lambdas,n.sims=100,er.mn = exploit.mn,er.sd = exploit.sd)
+
 
