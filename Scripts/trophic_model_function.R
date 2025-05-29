@@ -660,14 +660,15 @@ for(j in 1:n.sims)
         
       } # end if(method != "sample")
       while(is.na(lam.samp)) lam.samp <- rlnorm(1,log(lam.mn),lam.sd)
-      # Final one, if we are above the K, then our lambda is even lower
+      # Final one, if we are above the K, we are just doing the high biomass scenario for now.
       # FIX" But how to do this, it is a very influential decision in terms of the dynamics
       # for the stocks, we'll need to discuss this one!
       if(bm.start > cur.K) 
       {
-        lam.mn <- quantile(stock.lambdas$lam.no.fish[high.bm.years],probs = 0.1,na.rm=T)
+        lam.mn <- median(stock.lambdas$lam.no.fish[high.bm.years],na.rm=T)
         lam.sd <- sd(log(stock.lambdas$lam.no.fish[high.bm.years]),na.rm=T)
-        lam.samp <- 0.9#rlnorm(1,log(lam.mn),lam.sd)
+        lam.samp <- rlnorm(1,log(lam.mn),lam.sd)
+        while(lam.samp >1) lam.samp <- rlnorm(1,log(lam.mn),lam.sd)
       }
       #while(is.na(lam.samp)) lam.samp <- rlnorm(1,log(lam.mn),lam.sd)
       
