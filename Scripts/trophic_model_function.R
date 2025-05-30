@@ -661,8 +661,7 @@ for(j in 1:n.sims)
       } # end if(method != "sample")
       while(is.na(lam.samp)) lam.samp <- rlnorm(1,log(lam.mn),lam.sd)
       # Final one, if we are above the K, we are just doing the high biomass scenario for now.
-      # FIX" But how to do this, it is a very influential decision in terms of the dynamics
-      # for the stocks, we'll need to discuss this one!
+      # Solution, sample from the lambdas at high biomass, but only take lambdas that are <= 1
       if(bm.start > cur.K) 
       {
         lam.mn <- median(stock.lambdas$lam.no.fish[high.bm.years],na.rm=T)
