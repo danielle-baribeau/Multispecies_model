@@ -15,8 +15,9 @@
 #7: repo.loc    # Location of the Github repo, defaults to "D:/GitHub/Multispecies_model/"
 
 
-trophic.mod<-function(stocks = NULL,lambdas= NULL,n.yrs.proj = 50, n.sims = 20,er.mn = NULL,er.sd = NULL,
-                      repo.loc = "D:/GitHub/Multispecies_model/")
+trophic.mod<-function(stocks = NULL,lambdas= NULL,n.yrs.proj = 50, n.sims = 20,
+                      catch = list(catch = NULL,er.mn = NULL,er.sd = NULL),
+                      repo.loc = "D:/GitHub/Multispecies_model")
 {
 stock.eco <- names(stocks)
 
@@ -49,7 +50,6 @@ for(fun in funs)
 # data for over the period of time we have data for all the stocks.
 # So here we pull out the data we need to look at total abundance and total biomass in the system by year...
 years <- NULL
-vpa <- NULL
 bm <- NULL
 num <- NULL
 waa <- NULL
@@ -80,7 +80,7 @@ for(s in  stock.eco)
   bm[[s]] <- bm[[s]] |> collapse::fsubset(Year %in% years[[s]])
   #pnm[[s]] <- 1-exp(-lambdas[[s]]$nm.opt)
   #mx[[s]] <- lambdas[[s]]$fecund.opt
-  vpa[[s]] <- lambdas[[s]]$res$est.abund
+  #vpa[[s]] <- lambdas[[s]]$res$est.abund
 } # end for(s in  stock.eco)
 # Combine the biomass and abundance data into a dataframe
 bm.tst <- do.call("rbind",bm)
@@ -228,27 +228,27 @@ eco.tot.bm.best <- eco.tot.bm |> collapse::fsubset(Year %in% first.year:last.yea
 trophic.bm.best <- trophic.bm |> collapse::fsubset(Year %in% first.year:last.year)
 
 # The correlation in the ecosystem biomass trend, can see this is an AR1
-K.cor <- pacf(eco.tot.bm.best$bm.eco)
+K.cor <- pacf(eco.tot.bm.best$bm.eco,plot=F)
 # The cross correlation between the ecosystem biomass trend and the trophic level biomasses
 # All correlated, but strongest is unsurprisingly the link between the the ecosystem and the biomass in the
 # lowest TL. I suspect this may structurally come out even without explicity building in a lot of
 # correlation structure to the models.
-K.tl.3.cor <- ccf(eco.tot.bm.best$bm.eco,trophic.bm.best$bm.tl[trophic.bm.best$troph.cat==3])
-K.tl.4.cor <- ccf(eco.tot.bm.best$bm.eco,trophic.bm.best$bm.tl[trophic.bm.best$troph.cat==4])
-K.tl.5.cor <- ccf(eco.tot.bm.best$bm.eco,trophic.bm.best$bm.tl[trophic.bm.best$troph.cat==5])
+K.tl.3.cor <- ccf(eco.tot.bm.best$bm.eco,trophic.bm.best$bm.tl[trophic.bm.best$troph.cat==3],plot = F)
+K.tl.4.cor <- ccf(eco.tot.bm.best$bm.eco,trophic.bm.best$bm.tl[trophic.bm.best$troph.cat==4],plot = F)
+K.tl.5.cor <- ccf(eco.tot.bm.best$bm.eco,trophic.bm.best$bm.tl[trophic.bm.best$troph.cat==5],plot = F)
 # Within trophic levels...
 # So these 3 mostly say if the biomass is up one TL, it is up in all TLs, tho there might be some negative between 3 and 4
 # at Lag -1 (though that's not quite significant)
-tl.3.4.cor <- ccf(trophic.bm.best$bm.tl[trophic.bm.best$troph.cat == 3],trophic.bm.best$bm.tl[trophic.bm.best$troph.cat == 4])
-tl.3.5.cor <- ccf(trophic.bm.best$bm.tl[trophic.bm.best$troph.cat == 3],trophic.bm.best$bm.tl[trophic.bm.best$troph.cat == 5])
-tl.4.5.cor <- ccf(trophic.bm.best$bm.tl[trophic.bm.best$troph.cat == 4],trophic.bm.best$bm.tl[trophic.bm.best$troph.cat == 5])
+tl.3.4.cor <- ccf(trophic.bm.best$bm.tl[trophic.bm.best$troph.cat == 3],trophic.bm.best$bm.tl[trophic.bm.best$troph.cat == 4],plot = F)
+tl.3.5.cor <- ccf(trophic.bm.best$bm.tl[trophic.bm.best$troph.cat == 3],trophic.bm.best$bm.tl[trophic.bm.best$troph.cat == 5],plot = F)
+tl.4.5.cor <- ccf(trophic.bm.best$bm.tl[trophic.bm.best$troph.cat == 4],trophic.bm.best$bm.tl[trophic.bm.best$troph.cat == 5],plot = F)
 # Looking at proportions, need to stew a bit on this because there is necessarily some 
 # correlation built into proportions, but what is interesting is that
 # the correlation strength is really really high between TL 3 and TL 4, it is weaker (more diffuse really) at TL 5
 # and there is no correlation between 4 and 5
-tl.3.4.prop.cor <- ccf(bm.best$prop.bm.tl[bm.best$troph.cat == 3][1:n.years],bm.best$prop.bm.tl[bm.best$troph.cat == 4][1:n.years])
-tl.3.5.prop.cor <- ccf(bm.best$prop.bm.tl[bm.best$troph.cat == 3][1:n.years],bm.best$prop.bm.tl[bm.best$troph.cat == 5][1:n.years])
-tl.4.5.prop.cor <- ccf(bm.best$prop.bm.tl[bm.best$troph.cat == 4][1:n.years],bm.best$prop.bm.tl[bm.best$troph.cat == 5][1:n.years])
+tl.3.4.prop.cor <- ccf(bm.best$prop.bm.tl[bm.best$troph.cat == 3][1:n.years],bm.best$prop.bm.tl[bm.best$troph.cat == 4][1:n.years],plot = F)
+tl.3.5.prop.cor <- ccf(bm.best$prop.bm.tl[bm.best$troph.cat == 3][1:n.years],bm.best$prop.bm.tl[bm.best$troph.cat == 5][1:n.years],plot = F)
+tl.4.5.prop.cor <- ccf(bm.best$prop.bm.tl[bm.best$troph.cat == 4][1:n.years],bm.best$prop.bm.tl[bm.best$troph.cat == 5][1:n.years],plot = F)
 
 
 # So now really what I need to do first is make a quick simulation that gets me ecosystem K, trophic level K, and stock K
@@ -278,16 +278,16 @@ estBetaParams <- function(mu, var) {
   beta <- alpha * (1 / mu - 1)
   return(params = list(alpha = alpha, beta = beta))
 }
-tl3.prop.bm.params <- estBetaParams(mn.tl3.prop.bm,sd.tl3.prop.bm^2)
-tl4.prop.bm.params <- estBetaParams(mn.tl4.prop.bm,sd.tl4.prop.bm^2)
-tl5.prop.bm.params <- estBetaParams(mn.tl5.prop.bm,sd.tl5.prop.bm^2)
+#tl3.prop.bm.params <- estBetaParams(mn.tl3.prop.bm,sd.tl3.prop.bm^2)
+#tl4.prop.bm.params <- estBetaParams(mn.tl4.prop.bm,sd.tl4.prop.bm^2)
+#tl5.prop.bm.params <- estBetaParams(mn.tl5.prop.bm,sd.tl5.prop.bm^2)
 # Doesn't do badly, gets the mean/spread about right, not enough data in our distro to say much else...
-hist(bm.best$prop.bm.tl[bm.best$troph.cat == 3][1:n.years])
-hist(rbeta(10000,tl3.prop.bm.params$alpha,tl3.prop.bm.params$beta))
-hist(bm.best$prop.bm.tl[bm.best$troph.cat == 4][1:n.years])
-hist(rbeta(10000,tl4.prop.bm.params$alpha,tl4.prop.bm.params$beta))
-hist(bm.best$prop.bm.tl[bm.best$troph.cat == 5][1:n.years])
-hist(rbeta(10000,tl5.prop.bm.params$alpha,tl5.prop.bm.params$beta))
+# hist(bm.best$prop.bm.tl[bm.best$troph.cat == 3][1:n.years])
+# hist(rbeta(10000,tl3.prop.bm.params$alpha,tl3.prop.bm.params$beta))
+# hist(bm.best$prop.bm.tl[bm.best$troph.cat == 4][1:n.years])
+# hist(rbeta(10000,tl4.prop.bm.params$alpha,tl4.prop.bm.params$beta))
+# hist(bm.best$prop.bm.tl[bm.best$troph.cat == 5][1:n.years])
+# hist(rbeta(10000,tl5.prop.bm.params$alpha,tl5.prop.bm.params$beta))
 
 
 # First get the ecosystem biomass in a correlated time series, there are a whole lot of ways one could do this, this
@@ -306,7 +306,7 @@ tl.3.prop.bm.lag.2 <- tl.3.prop.pacf$acf[2]
 # TL 4 and 5 splits historically
 tl.4.5.prop.bm <- bm.best$bm.tl[bm.best$troph.cat == 5][1:n.years]/(bm.best$bm.tl[bm.best$troph.cat == 4][1:n.years]+bm.best$bm.tl[bm.best$troph.cat == 5][1:n.years])
 # This is the correlation between 4 and 5
-tl.4.5.prop.4.5.bm <- pacf(tl.4.5.prop.bm)
+tl.4.5.prop.4.5.bm <- pacf(tl.4.5.prop.bm,plot = F)
 
 
 troph.levels <- sort(unique(bm.best$troph.cat))
@@ -472,8 +472,6 @@ save_plot(filename = paste0(repo.loc,"/Figures/Simulation_eco_K.png"),sim.eco.K.
 #ggplot(sim.K.stocks |> collapse::fsubset(sim == 1)) + geom_line(aes(x=Years,y=bm.stock,group=Stock,color=troph.cat)) + scale_y_log10()
 # ggplot(bm.best) + geom_line(aes(x=Year,y=bm.stock,group=Stock,color=troph.cat))+ scale_y_log10()
 
-
-
 # Fix: This is not perfect way to get the past exploitation rates as the removals we have here are in numbers
 # Give we have the database with the age specific removals and age specific weights, this
 # should be tweaked to use that data. That said, for the moment this should be 'good enough' 
@@ -482,13 +480,7 @@ save_plot(filename = paste0(repo.loc,"/Figures/Simulation_eco_K.png"),sim.eco.K.
 # This is where we go from numbers to a biomass and get an exploitation rate in biomass.
 #fm.dat$exploit <- (fm.dat$rem*fm.dat$avg.weight)/fm.dat$bm.stock
 # Extract the LTR results.
-mod.fit <- NULL
-for(s in stock.eco) 
-{
-  mod.fit[[s]] <- lambdas[[s]]$res
-  mod.fit[[s]]$max.num <- max(mod.fit[[s]]$est.abund,na.rm=T)
-  mod.fit[[s]]$prop.max <-  mod.fit[[s]]$est.abund/mod.fit[[s]]$max.num
-}
+
 
 ############### Section 4 Multi-species model of North Sea ############### Section 4 Multi-species model of North Sea ############### Section 4 Multi-species model of North Sea
 
@@ -584,8 +576,6 @@ for(j in 1:n.sims)
   for(s in stock.eco)
   {
       # Reset samples
-      
-      stock.fit <- mod.fit[[s]] 
       stock.lambdas <- lambdas[[s]] 
       tmp.bm.last <- stock.bm.last |> collapse::fsubset(Stock == s)
       tmp.stock.K <- base.stock.K.tmp |> collapse::fsubset(Stock == s)
@@ -596,7 +586,7 @@ for(j in 1:n.sims)
       { 
         
         bm.start <- bm.ts.stock$bm.stock[bm.ts.stock$Year == last.year]
-        res.ts[[s]] <- data.frame(bm = bm.start,catch = NA,ex.rate = NA,
+        res.ts[[s]] <- data.frame(bm = bm.start,removals = NA,ex.rate = NA,
                                   Stock = s,sim= j,lambda = NA,Years=t-1,
                                   troph.cat = as.numeric(unique(bm.tot$troph.cat[bm.tot$Stock ==s])),
                                   K.bm = NA)
@@ -671,25 +661,51 @@ for(j in 1:n.sims)
       }
       #while(is.na(lam.samp)) lam.samp <- rlnorm(1,log(lam.mn),lam.sd)
       
-# Simple way to include catch
+# Simple way to include removals
 
-if(is.null(er.mn)) {ex.rate = 0; ex.sd = 0}
-if(!is.null(er.mn))
+if(is.null(catch$er.mn)) {ex.rate = 0; ex.sd = 0}
+if(!is.null(catch$er.mn))
 {
+  er.mn <- catch$er.mn
+  if(!is.null(catch$er.sd)) er.sd <- catch$er.sd
+  if(is.null(catch$er.sd)) er.sd <- data.frame(er.sd=0,Stock =s)
   ex.rate = er.mn$ex.mn[er.mn$Stock == s]
   ex.sd = er.sd$ex.sd[er.sd$Stock == s]
-}
-#browser()
-er <- rlnorm(1,log(ex.rate),ex.sd)
-catch <- bm.start*er
+} # end if(!is.null(catch$er.mn))
+if(is.null(catch$catch)) 
+{
+  #print(ex.rate)
+  ex.rate <- -log(1-ex.rate)
+  er <- rlnorm(1,log(ex.rate),ex.sd)
+  er <- 1-exp(-er)
+  removals <- bm.start*er
+} # end if(is.null(catch$catch)) 
+      
+# If you have a catch estimate for the stock
+  if(!is.null(catch$catch))
+  {
+    limit.er <- 0.4
+    removals.tmp <- catch$catch$catch[catch$catch$Stock ==s]
+    er <- removals/(bm.start+removals.tmp)
+    if(er > limit.er) 
+    {
+      removals <- limit.er*bm.start
+      er <- limit.er
+    }
+  } # end if(!is.null(catch$catch))
+
+
+#print(er)
+
 #lam.samp <- rlnorm(1,log(1),0.1)
-tst.res <- (lam.samp)*bm.start - catch
-# Or do we want to grow after catch
-#tst.res <- lam.samp*(bm.start - catch)
+#tst.res <- (lam.samp)*bm.start - removals
+# We want to grow after removals because otherwise we can get negative values given exploitation was
+# calculated using the initial biomass
+tst.res <- lam.samp*(bm.start - removals)
      
 # Because I'm only doing this one year at a time, there's something in here I need to mess around with to get the output tidy...
 
-res.ts[[s]] <- rbind(res.ts[[s]] ,data.frame(bm = tst.res,catch =catch,ex.rate = er,
+res.ts[[s]] <- rbind(res.ts[[s]] ,data.frame(bm = tst.res,removals =removals,ex.rate = er,
                                              Stock = s,sim= j,lambda = lam.samp,Years=t,
                                              troph.cat = as.numeric(unique(bm.tot$troph.cat[bm.tot$Stock ==s])),
                                              K.bm = tmp.stock.K$adj.K))
@@ -787,5 +803,10 @@ save_plot(paste0(repo.loc,"/Figures/Quantile_biomass_trends.png"),p.sims.quants,
 #   scale_y_log10(name= "Proportion of biomass",n.breaks=10) + scale_x_continuous(name="",labels = c(1990,2000,2010),breaks=c(1990,2000,2010))+
 #   scale_color_manual(values=pal)
 
-
+return(list(sim.quantiles = quants,
+            sim.ts = ts.final,
+            past.bm = bm.best,
+            sim.K.stocks = sim.K.stocks,
+            sim.troph.K = sim.troph.K,
+            sim.eco.K = sim.eco.K))
 } # end function
