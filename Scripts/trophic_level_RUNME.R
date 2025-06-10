@@ -5,14 +5,16 @@
 
 
 n.yrs.proj <- 50 # How many years into the future we are going to project the stocks
-n.sims <- 20 # The numbers of simulations to run, keeping low for testing...
+n.sims <- 50 # The numbers of simulations to run, keeping low for testing...
 
 
-dat.loc <- 'D:/GitHub/ICM'
-repo.loc <- "D:/GitHub/Multispecies_model/"
+dat.loc <- 'C:/Users/keithd/Documents/GitHub/ICM'
+repo.loc <- "C:/Users/keithd/Documents/GitHub/Multispecies_model"
 #loc <- "C:/Users/keithd/Documents/Github/ICM"
 load(file = paste0(dat.loc,"/Results/all_cleaned_forward_tune_summaries_no_age_corection_fec_nm.Rdata"))
 load(file = paste0(dat.loc,"/Results/model_inputs_no_age_correction.Rdata"))
+# load in the trophic mocdel function
+source(paste0(repo.loc,"/Scripts/trophic_model_function.R"))
 
 # We've spelt the name of Turbot wrong and the name of arrow-tooth flounder. Tidy up of other names because of spaces and capitialization.
 ASR.long$Genus[ASR.long$Genus == 'Scopthalmus'] <- "Scophthalmus" 
@@ -91,8 +93,25 @@ for(s in names(for.tune.all)) if(s %in% eco.stocks) eco.lambdas[[s]] <- res.lamb
 # Try the function
 exploit.mn <- data.frame(ex.mn = c(rep(0.01,length(stock.lst))),Stock = names(stock.lst))
 exploit.sd <- data.frame(ex.sd = c(rep(0.1,length(stock.lst))),Stock = names(stock.lst))
+test <- trophic.mod(stocks = stock.lst,lambdas= eco.lambdas,n.sims=n.sims,
+                    catch = list(catch =NULL,er.mn = exploit.mn,er.sd = exploit.sd),
+                    n.yrs.proj= n.yrs.proj,repo.loc=repo.loc)
 
-test <- trophic.mod(stocks = stock.lst,lambdas= eco.lambdas,n.sims=n.sims,er.mn = exploit.mn,er.sd = exploit.sd,
-                    n.yrs.proj= n.yrs.proj)
+catch <- data.frame(catch = c(1e5,1e5,100,100,1e4,1000,1e4,1e4,1e4,1e4,100,100,100,100),Stock = names(stock.lst))
+test <- trophic.mod(stocks = stock.lst,lambdas= eco.lambdas,n.sims=n.sims,
+                    catch = list(catch =catch,er.mn = NULL,er.sd = NULL),
+                    n.yrs.proj= n.yrs.proj,repo.loc=repo.loc)
+
+# Look at this...
+test$sim.ts
 
 
+saveRDS(object = test,file = paste0(repo.loc,"/Results/NS_projections_",n.sims,"_sims.Rds"))
+
+haddock.K <- test$sim.K.stocks[test$sim.K.stocks$Stock=="ICES-WGNSSK_NS  4-6a-20_Melanogrammus_aeglefinus",]
+haddock.bm <- test$sim.ts[test$sim.ts$Stock=="ICES-WGNSSK_NS  4-6a-20_Melanogrammus_aeglefinus",]
+
+plot(haddock.bm$bm[haddock.bm$sim == 1],type='l')
+plot(haddock.K$bm.stock[haddock.K$sim ==1],type='l')
+
+plot(haddock.bm$bm[haddock.bm$sim == 7]/ haddock.K$bm.stock[haddock.K$sim ==7],type='l')                         
