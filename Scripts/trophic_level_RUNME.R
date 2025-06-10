@@ -5,7 +5,7 @@
 
 
 n.yrs.proj <- 50 # How many years into the future we are going to project the stocks
-n.sims <- 2 # The numbers of simulations to run, keeping low for testing...
+n.sims <- 50 # The numbers of simulations to run, keeping low for testing...
 
 
 dat.loc <- 'C:/Users/keithd/Documents/GitHub/ICM'
@@ -93,14 +93,18 @@ for(s in names(for.tune.all)) if(s %in% eco.stocks) eco.lambdas[[s]] <- res.lamb
 # Try the function
 exploit.mn <- data.frame(ex.mn = c(rep(0.01,length(stock.lst))),Stock = names(stock.lst))
 exploit.sd <- data.frame(ex.sd = c(rep(0.1,length(stock.lst))),Stock = names(stock.lst))
-catch <- data.frame(catch = rep(1000,length(stock.lst)),Stock = names(stock.lst))
 test <- trophic.mod(stocks = stock.lst,lambdas= eco.lambdas,n.sims=n.sims,
                     catch = list(catch =NULL,er.mn = exploit.mn,er.sd = exploit.sd),
                     n.yrs.proj= n.yrs.proj,repo.loc=repo.loc)
 
+catch <- data.frame(catch = c(1e5,1e5,100,100,1e4,1000,1e4,1e4,1e4,1e4,100,100,100,100),Stock = names(stock.lst))
 test <- trophic.mod(stocks = stock.lst,lambdas= eco.lambdas,n.sims=n.sims,
                     catch = list(catch =catch,er.mn = NULL,er.sd = NULL),
                     n.yrs.proj= n.yrs.proj,repo.loc=repo.loc)
+
+# Look at this...
+test$sim.ts
+
 
 saveRDS(object = test,file = paste0(repo.loc,"/Results/NS_projections_",n.sims,"_sims.Rds"))
 

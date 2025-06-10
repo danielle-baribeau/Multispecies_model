@@ -59,9 +59,9 @@ ages <- NULL
 rem.age <- NULL
 for(s in  stock.eco)
 {
-  years[[s]] <- eco.lambdas[[s]]$year
+  years[[s]] <- lambdas[[s]]$year
   #vpa[[s]] <- vpa.tmp[[s]]
-  ages[[s]] <- eco.lambdas[[s]]$age.min[1]:eco.lambdas[[s]]$age.max[1]
+  ages[[s]] <- lambdas[[s]]$age.min[1]:lambdas[[s]]$age.max[1]
   num[[s]] <- stocks[[s]] |> collapse::fsubset(type == "Num")
   num[[s]] <- num[[s]] |> collapse::fsubset(age != "tot")
   waa[[s]] <- stocks[[s]]|> collapse::fsubset(type == "WA")
@@ -137,6 +137,10 @@ last.year <- min(what.year$max)
 n.years <- length(first.year:last.year)
 # Now we subset the data to these years
 bm.best <- bm.final |> collapse::fsubset(Year %in% first.year:last.year) 
+# Now we subset the lambdas
+lambdas.tmp <- NULL
+for(s in stock.eco)   lambdas.tmp[[s]] <- lambdas[[s]][lambdas[[s]]$year %in% first.year:last.year,] 
+lambdas <- lambdas.tmp
 
 # Biomass by trophic level over time
 bm.tl.plt <- ggplot(bm.best) + geom_line(aes(x=Year,y=bm.tl,group=as.character(troph.cat),color=as.character(troph.cat))) + 
@@ -258,49 +262,13 @@ start.eco.sim <- eco.tot.bm.best$bm.eco[length(eco.tot.bm.best$bm.eco)]
 sd.eco.bm <- sd(eco.tot.bm.best$bm.eco)
 # trophic level biomass and proportions... for the proportion will probably wanna sample from a beta distro
 # So not sure how to do that nicely...
-# FIX: We could also go with the proportions recently being the place to start, with the
-# standard deviation. Arguement being the most recent structure is most relevent...
-mn.tl3.bm <- mean(trophic.bm.best$bm.tl[trophic.bm.best$troph.cat ==3])
-# What happens if we pick the most recent year instead of the mean...
-browser()
-mn.tl3.bm <- trophic.bm.best$bm.tl[trophic.bm.best$troph.cat ==3,n.years]
-sd.tl3.bm <- sd(trophic.bm.best$bm.tl[trophic.bm.best$troph.cat ==3])
-mn.tl3.prop.bm <- mean(bm.best$prop.bm.tl[bm.best$troph.cat == 3][1:n.years])
-sd.tl3.prop.bm <- sd(bm.best$prop.bm.tl[bm.best$troph.cat == 3][1:n.years])
-mn.tl4.bm <- mean(trophic.bm.best$bm.tl[trophic.bm.best$troph.cat ==4])
-sd.tl4.bm <- sd(trophic.bm.best$bm.tl[trophic.bm.best$troph.cat ==4])
-mn.tl4.prop.bm <- mean(bm.best$prop.bm.tl[bm.best$troph.cat == 4][1:n.years])
-sd.tl4.prop.bm <- sd(bm.best$prop.bm.tl[bm.best$troph.cat == 4][1:n.years])
-mn.tl5.bm <- mean(trophic.bm.best$bm.tl[trophic.bm.best$troph.cat ==5])
-sd.tl5.bm <- sd(trophic.bm.best$bm.tl[trophic.bm.best$troph.cat ==5])
-mn.tl5.prop.bm <- mean(bm.best$prop.bm.tl[bm.best$troph.cat == 5][1:n.years])
-sd.tl5.prop.bm <- sd(bm.best$prop.bm.tl[bm.best$troph.cat == 5][1:n.years])
-
-# This little puppy will take the mean/variance parameters from our data into the beta parameters
-# Extract the Beta parameters from the mean and variance of your data
-estBetaParams <- function(mu, var) {
-  alpha <- ((1 - mu) / var - 1 / mu) * mu ^ 2
-  beta <- alpha * (1 / mu - 1)
-  return(params = list(alpha = alpha, beta = beta))
-}
-#tl3.prop.bm.params <- estBetaParams(mn.tl3.prop.bm,sd.tl3.prop.bm^2)
-#tl4.prop.bm.params <- estBetaParams(mn.tl4.prop.bm,sd.tl4.prop.bm^2)
-#tl5.prop.bm.params <- estBetaParams(mn.tl5.prop.bm,sd.tl5.prop.bm^2)
-# Doesn't do badly, gets the mean/spread about right, not enough data in our distro to say much else...
-# hist(bm.best$prop.bm.tl[bm.best$troph.cat == 3][1:n.years])
-# hist(rbeta(10000,tl3.prop.bm.params$alpha,tl3.prop.bm.params$beta))
-# hist(bm.best$prop.bm.tl[bm.best$troph.cat == 4][1:n.years])
-# hist(rbeta(10000,tl4.prop.bm.params$alpha,tl4.prop.bm.params$beta))
-# hist(bm.best$prop.bm.tl[bm.best$troph.cat == 5][1:n.years])
-# hist(rbeta(10000,tl5.prop.bm.params$alpha,tl5.prop.bm.params$beta))
+# 
 
 
 # First get the ecosystem biomass in a correlated time series, there are a whole lot of ways one could do this, this
 # is one of many different ideas. I think we could get the 4 and 5 correlations better another way, but
 # For a first pass I'm ok with this.
 # Ok, duh, use the mean of the time series then the arima gives us the deviations from that mean and we get a nice time series.
-
-#ggplot(bm.trophic.Ks[[i]]) + geom_line(aes(x=Years,y=prop.bm.tl,group = troph.cat,color=troph.cat))
 
 # Used for simulations to get good time series for the K for TL3,4, and 5 
 tl.3.prop.bm.ts <- bm.best$prop.bm.tl[bm.best$troph.cat==3][1:n.years]
@@ -321,29 +289,40 @@ sim.K.stock <- NULL
 sim.Ks <- NULL
 sim.eco.bm <- NULL
 bm.trophic.Ks <- NULL
-# Starting values for the ecosystem and the proportions
-start.eco.sim <- eco.tot.bm.best$bm.eco[nrow(eco.tot.bm.best)]
-start.eco.diff = start.eco.sim- mn.eco.bm
-# Starting and mean values for the trophic levels
-mn.tl.3.prop.bm <- mean(tl.3.prop.bm.ts)
-start.tl.3.prop.bm <- tl.3.prop.bm.ts[length(tl.3.prop.bm.ts)]
-# convert to logit scale for the arima models
+
+# Get necessary data on logit scale
 tl.3.logit <- logit(tl.3.prop.bm.ts)
+tl.4.5.logit <- logit(tl.4.5.prop.bm)
+
+# Starting values for the ecosystem and the proportions, logit needed for arima models with the proportions
+start.eco.sim <- eco.tot.bm.best$bm.eco[nrow(eco.tot.bm.best)]
+start.tl.3.prop.bm <- tl.3.prop.bm.ts[length(tl.3.prop.bm.ts)]
 start.tl.3.logit <- tl.3.logit[length(tl.3.logit)]
-mn.tl.3.logit <- mean(tl.3.logit)
-strat.tl.3.diff <- start.tl.3.logit - mn.tl.3.logit
-sd.tl.3.logit <- sd(tl.3.logit)
-# Now the proprotion between 4 and 5
-mn.tl.4.5.prop.bm <- mean(tl.4.5.prop.bm)
 start.tl.4.5.prop.bm <- tl.4.5.prop.bm[length(tl.4.5.prop.bm)]
+start.tl.4.5.logit <- tl.4.5.logit[length(tl.4.5.logit)]
+
+# Mean values for the trophic levels
+mn.tl.3.prop.bm <- mean(tl.3.prop.bm.ts)
+mn.tl.3.logit <- mean(tl.3.logit)
+mn.tl.4.5.prop.bm <- mean(tl.4.5.prop.bm)
+mn.tl.4.5.logit <- mean(tl.4.5.logit)
+# We could instead use the most recent year as the mean...
+mn.tl.3.prop.bm <- start.tl.3.prop.bm
+mn.tl.3.logit <- start.tl.3.logit
+mn.tl.4.5.prop.bm <- start.tl.4.5.prop.bm
+mn.tl.4.5.logit <- start.tl.4.5.logit
+
+# Difference between starting value an mean (if we use the most recent year as the 'mean', then this is 0)
+start.eco.diff = start.eco.sim- mn.eco.bm
+start.tl.3.diff <- start.tl.3.logit - mn.tl.3.logit
+start.tl.4.5.diff <- start.tl.4.5.logit - mn.tl.4.5.logit
+
+# the standard deviations
+sd.tl.3.logit <- sd(tl.3.logit)
+sd.tl.4.5.logit <- sd(tl.4.5.logit)
+# Lag for the Arima model
 tl.4.5.prop.bm.lag.1 <- tl.4.5.prop.4.5.bm$acf[1]
 # convert to logit scale for the arima models
-tl.4.5.logit <- logit(tl.4.5.prop.bm)
-start.tl.4.5.logit <- tl.4.5.logit[length(tl.4.5.logit)]
-mn.tl.4.5.logit <- mean(tl.4.5.logit)
-strat.tl.4.5.diff <- start.tl.4.5.logit - mn.tl.4.5.logit
-sd.tl.4.5.logit <- sd(tl.4.5.logit)
-
 
 
 for(i in 1:n.sims) 
@@ -361,7 +340,7 @@ for(i in 1:n.sims)
   # or correlations different it wouldn't do so well (e.g., it isn't nice for the stock level ones.)
   sim.tl.3.prop.bm <-inv.logit(mn.tl.3.logit + 
                                  arima.sim(model =list(ar = c(tl.3.prop.bm.lag.1,tl.3.prop.bm.lag.2)),n = n.yrs.proj,
-                                           n.start =2, start.innov = c(strat.tl.3.diff/tl.3.prop.bm.lag.1,strat.tl.3.diff/tl.3.prop.bm.lag.1), 
+                                           n.start =2, start.innov = c(start.tl.3.diff/tl.3.prop.bm.lag.1,start.tl.3.diff/tl.3.prop.bm.lag.1), 
                                            innov = c(0,rnorm(n.yrs.proj-1,0,sd.tl.3.logit))))
   
   bm.sim.3 <- sim.tl.3.prop.bm * sim.eco.bm[[i]]$bm
@@ -371,7 +350,7 @@ for(i in 1:n.sims)
    # so then simulate this split
   sim.tl.5.4.prop.bm <- inv.logit(mn.tl.4.5.logit + 
                                     arima.sim(model =list(ar = tl.4.5.prop.bm.lag.1),n = n.yrs.proj,
-                                              n.start =1, start.innov = c(strat.tl.4.5.diff/tl.4.5.prop.bm.lag.1), 
+                                              n.start =1, start.innov = c(start.tl.4.5.diff/tl.4.5.prop.bm.lag.1), 
                                               innov = c(0,rnorm(n.yrs.proj-1,0,sd.tl.3.logit))))
   # And now TL 5 gets this proportion of the 4 and 5 biomass
   bm.sim.5 <- bm.left.4.5 * sim.tl.5.4.prop.bm
@@ -409,6 +388,9 @@ for(i in 1:n.sims)
         bm.logit <- logit(tmp.dat$prop.bm.stock.tl)
         start.bm.logit <- bm.logit[length(bm.logit)]
         mn.bm.logit <- mean(bm.logit)
+        # Use the most recent bm on logit scale as the 'mean' value for the simulation
+        mn.bm.logit <- start.bm.logit
+        # And the standard deviation
         sd.bm.logit <- sd(bm.logit)
         diff.bm.logit <- start.bm.logit - mn.bm.logit
         
@@ -495,9 +477,11 @@ res.ts <- NULL
 ts.unpack <- NULL
 # Get the year range, going from the 'last' year to n.yrs.proj in the future, note this will go 1 year less than your intuition because
 # we want n.yrs of data, i.e., 20 years is 2000 to 2019, not 2020... )
+#browser()
 years <- (last.year+1):(last.year+n.yrs.proj)
 # Take the biomass data for the north sea and subset it to the years we have data
 bm.mod.yrs <- bm.tst |> collapse::fsubset(Year %in% first.year:last.year)
+for(s in Stocks)
 bm.start.year <- bm.mod.yrs |> collapse::fsubset(Year == last.year) |> 
                          collapse::fgroup_by(Stock,trophic,troph.cat,Species) |> 
                          collapse::fsummarise(bm.tot = sum(bm,na.rm=T))
@@ -582,11 +566,13 @@ for(j in 1:n.sims)
   for(s in stock.eco)
   {
       # Reset samples
+      #browser()
       stock.lambdas <- lambdas[[s]] 
       tmp.bm.last <- stock.bm.last |> collapse::fsubset(Stock == s)
       tmp.stock.K <- base.stock.K.tmp |> collapse::fsubset(Stock == s)
-      bm.ts.stock <- bm.final[bm.final$Stock == s,]  
-      
+      bm.ts.stock <- bm.final[bm.final$Stock == s & bm.final$Year %in% first.year:last.year,]  
+      #a=s
+      #browser()
       # Now get the final year bm
       if(t == 1) 
       { 
@@ -600,8 +586,8 @@ for(j in 1:n.sims)
       } else{ bm.start <- res.ts[[s]]$bm[res.ts[[s]]$Years == t-1]}
       
       # Sort out which of the years are low or high bm
-      # I'm using 0.4 as the cut off, other options are valid (0.4 is my fav...)
-      low.vs.high <- 0.4
+      # I'm using 0.5 as the cut off, other options are valid (0.4 is my fav...)
+      low.vs.high <- 0.5
       low.vs.high.bm <- low.vs.high * max(bm.ts.stock$bm.stock)
       # Have to drop the final year because we don't have a lambda estimate for the final year
       low.bm.years <- which(bm.ts.stock$bm.stock[-nrow(bm.ts.stock)] < low.vs.high.bm)
@@ -630,10 +616,7 @@ for(j in 1:n.sims)
       # Or do it the fun way...
       if(method != "sample")
       {
-        #browser()
-        
-        #count = count+1
-        #print(count)
+      
         # The fun way to do it is to do something multivariate! Note these are instantaneous now!!
         if(bm.start < low.vs.high.bm) 
         {
@@ -657,10 +640,11 @@ for(j in 1:n.sims)
           lam.mn <- median(stock.lambdas$lam.no.fish[high.bm.years],na.rm=T)
           lam.sd <- sd(log(stock.lambdas$lam.no.fish[high.bm.years]),na.rm=T)
           lam.samp <- rlnorm(1,log(lam.mn),lam.sd)
-          #if(is.na(lam.samp)) browser()
+          
         } # end if(bm.start < low.vs.high.bm) 
         
       } # end if(method != "sample")
+      #if(is.na(lam.samp)) browser()
       while(is.na(lam.samp)) lam.samp <- rlnorm(1,log(lam.mn),lam.sd)
       # Final one, if we are above the K, we are just doing the high biomass scenario for now.
       # Solution, sample from the lambdas at high biomass, but only take lambdas that are <= 1
@@ -688,8 +672,10 @@ if(!is.null(catch$er.mn))
 if(is.null(catch$catch)) 
 {
   #print(ex.rate)
+  # Convert proportion to F
   ex.rate <- -log(1-ex.rate)
   er <- rlnorm(1,log(ex.rate),ex.sd)
+  # Go from F back to proportion
   er <- 1-exp(-er)
   removals <- bm.start*er
 } # end if(is.null(catch$catch)) 
