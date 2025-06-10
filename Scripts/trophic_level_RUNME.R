@@ -5,7 +5,7 @@
 
 
 n.yrs.proj <- 50 # How many years into the future we are going to project the stocks
-n.sims <- 100 # The numbers of simulations to run, keeping low for testing...
+n.sims <- 2 # The numbers of simulations to run, keeping low for testing...
 
 
 dat.loc <- 'C:/Users/keithd/Documents/GitHub/ICM'

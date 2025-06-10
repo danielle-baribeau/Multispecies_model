@@ -686,12 +686,13 @@ if(is.null(catch$catch))
   {
     limit.er <- 0.4
     removals.tmp <- catch$catch$catch[catch$catch$Stock ==s]
-    er <- removals/(bm.start+removals.tmp)
+    er <- removals.tmp/(bm.start+removals.tmp)
     if(er > limit.er) 
     {
-      removals <- limit.er*bm.start
+      removals.tmp <- limit.er*bm.start
       er <- limit.er
     }
+    removals <- removals.tmp
   } # end if(!is.null(catch$catch))
 
 
