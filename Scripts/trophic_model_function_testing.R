@@ -17,7 +17,7 @@
 
 trophic.mod<-function(stocks = NULL,lambdas= NULL,n.yrs.proj = 50, n.sims = 20,
                       catch = list(catch = NULL,er.mn = NULL,er.sd = NULL),
-                      repo.loc = "D:/GitHub/Multispecies_model")
+                      repo.loc = "D:/GitHub/Multispecies_model",method = "not_sample")
 {
 stock.eco <- names(stocks)
 
@@ -622,13 +622,13 @@ for(j in 1:n.sims)
         {
           if(length(low.bm.years) >0)
           {
-          lam.mn <- median(stock.lambdas$lam.no.fish[low.bm.years],na.rm=T)
+          lam.mn <- mean(stock.lambdas$lam.no.fish[low.bm.years],na.rm=T)
           lam.sd <- sd(log(stock.lambdas$lam.no.fish[low.bm.years]),na.rm=T)
           if(length(low.bm.years) == 1) lam.sd <- 0.2 # In case there is just one low biomass year
           }
           if(length(low.bm.years) ==0)
           {
-            lam.mn <- median(stock.lambdas$lam.no.fish,na.rm=T)
+            lam.mn <- mean(stock.lambdas$lam.no.fish,na.rm=T)
             lam.sd <- sd(log(stock.lambdas$lam.no.fish),na.rm=T)
           }
           lam.samp <- rlnorm(1,log(lam.mn),lam.sd)
@@ -637,7 +637,7 @@ for(j in 1:n.sims)
         
         if(bm.start >= low.vs.high.bm & bm.start < cur.K) 
         {
-          lam.mn <- median(stock.lambdas$lam.no.fish[high.bm.years],na.rm=T)
+          lam.mn <- mean(stock.lambdas$lam.no.fish[high.bm.years],na.rm=T)
           lam.sd <- sd(log(stock.lambdas$lam.no.fish[high.bm.years]),na.rm=T)
           lam.samp <- rlnorm(1,log(lam.mn),lam.sd)
           
@@ -650,7 +650,7 @@ for(j in 1:n.sims)
       # Solution, sample from the lambdas at high biomass, but only take lambdas that are <= 1
       if(bm.start >= cur.K) 
       {
-        lam.mn <- median(stock.lambdas$lam.no.fish[high.bm.years],na.rm=T)
+        lam.mn <- mean(stock.lambdas$lam.no.fish[high.bm.years],na.rm=T)
         lam.sd <- sd(log(stock.lambdas$lam.no.fish[high.bm.years]),na.rm=T)
         lam.samp <- rlnorm(1,log(lam.mn),lam.sd)
         #if(is.na(lam.samp)) browser()
