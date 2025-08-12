@@ -13,10 +13,11 @@
 #6: er.sd       # standard deviation of exploitation rate for the fishery for each stock, set up to be proportional 
 #               # Should be the same length as the number of stocks. Defaults to NULL, which is no uncertainty
 #7: repo.loc    # Location of the Github repo, defaults to "D:/GitHub/Multispecies_model/"
+#8: mgmt        #list of management plan information for each stock
 
 
 trophic.mod<-function(stocks = NULL,lambdas= NULL,n.yrs.proj = 50, n.sims = 20,
-                      mgmt = list(mgmt = mgmt.stock,er.mn = NULL,er.sd = NULL),
+                      mgmt = list(mgmt = mgmt.plan,er.mn = NULL,er.sd = NULL),
                       repo.loc = "D:/GitHub/Multispecies_model",method = "not_sample")
 {
 stock.eco <- names(stocks)
@@ -750,7 +751,7 @@ res.ts[[s]] <- rbind(res.ts[[s]] ,data.frame(net.bm = tst.res,removals = removal
                                              Stock = s,sim= j,lambda = lam.samp, Years=t,
                                              troph.cat = as.numeric(unique(bm.tot$troph.cat[bm.tot$Stock ==s])),
                                              K.bm = tmp.stock.K$adj.K))
-
+}#end stock loop
 #if this an assessment year, update default exploitation rate in original management plan for the stock
 if (t %% assessment == 0){
   mgmt.plan$ex.curr[stock.num] <- next.yrs.u
@@ -767,8 +768,10 @@ if (t %% assessment == 0){
   print(paste("Simulation ", j))
   print(signif(timer,digits=2))
   
-} # end n.sims
+}# end t loop
 
+}#end n.sims
+  
 # Unpack all the results.
 ts.final <- do.call("rbind",ts.unpack)
 #Group results by stock into lists
