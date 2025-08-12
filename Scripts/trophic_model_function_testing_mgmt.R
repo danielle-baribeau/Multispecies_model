@@ -726,60 +726,7 @@ for(j in 1:n.sims)
       }
       #while(is.na(lam.samp)) lam.samp <- rlnorm(1,log(lam.mn),lam.sd)
       
-# Simple way to include removals
-
-#if(is.null(catch$er.mn)) {ex.rate = 0; ex.sd = 0}
-#if(!is.null(catch$er.mn))
-#{
-  #er.mn <- catch$er.mn
-  #if(!is.null(catch$er.sd)) er.sd <- catch$er.sd
-  #if(is.null(catch$er.sd)) er.sd <- data.frame(er.sd=0,Stock =s)
-  #ex.rate = er.mn$ex.mn[er.mn$Stock == s]
-  #ex.sd = er.sd$ex.sd[er.sd$Stock == s]
-#} # end if(!is.null(catch$er.mn))
-#if(is.null(catch$catch)) 
-#{
-  #print(ex.rate)
-  # Convert proportion to F
-  #ex.rate <- -log(1-ex.rate)
-  #er <- rlnorm(1,log(ex.rate),ex.sd)
-  # Go from F back to proportion
-  #er <- 1-exp(-er)
-  #removals <- bm.start*er
-#} # end if(is.null(catch$catch)) 
-      
-# If you have a catch estimate for the stock
-  #if(!is.null(catch$catch))
-  #{
-    #limit.er <- 0.4
-   # removals.tmp <- catch$catch$catch[catch$catch$Stock ==s]
-    #er <- removals.tmp/(bm.start+removals.tmp)
-    #if(er > limit.er) 
-    #{
-     # removals.tmp <- limit.er*bm.start
-      #er <- limit.er
-    #}
-    #removals <- removals.tmp
- # } # end if(!is.null(catch$catch))
-
-
-#print(er)
-
-#lam.samp <- rlnorm(1,log(1),0.1)
-#tst.res <- (lam.samp)*bm.start - removals
-# We want to grow after removals because otherwise we can get negative values given exploitation was
-# calculated using the initial biomass
-#tst.res <- lam.samp*(bm.start - removals)
-
-#testing mgmt catch function
-#get management plan details for stock of interest
-  #tmp.mgmt.stock <- mgmt$mgmt |> collapse::fsubset(Stock == s)
-#isolate F from stock-specific management plan
-  #f.plan <- as.numeric(tmp.mgmt.stock$f.rate)
-#get biomass of stock in current projection year before catch is factored in
-  #bm.yr.tmp <- lam.samp*bm.start
-      
-#convert F into a catch value
+################################## New catch function stuff #########################################
 #make a stock-specific management plan
       mgmt.stock <- mgmt.plan |> collapse::fsubset(stock == s)
 #isolate stock position number/assessment interval from mgmt plan
@@ -809,22 +756,6 @@ if (t %% assessment == 0){
   mgmt.plan$ex.curr[stock.num] <- next.yrs.u
 }
 
-
-#find final biomass of stock in current projection year (with catch factored in)
-#tst.res <- lam.samp*(bm.start - removals) #this is net biomass after removals are taken out
-
-
-#ex.rate = er
-#if(tst$r$r[1] > 14) stop("WTF")
-#abund.new[[s]] <- data.frame(abund = tst$Pop$abund[2])
-#res.r[[s]] <- data.frame(tst$r[1,-2],stock=s,sim=j)
-
-  } # end stock loop
-  #res.tst[[t]] <- do.call("rbind",res.ts)
-  } # end the t looping through each year.
-  
-#ggplot(base.stock.K) + geom_line(aes(x= Years,y=bm.stock,group=Stock,color=Stock)) + facet_wrap(~troph.cat) + scale_y_log10()
-  
   # Unpack the results
   ts.unpack[[j]] <- do.call('rbind',res.ts)
   
@@ -845,6 +776,7 @@ ts.final.tmp <- NULL
 for(s in stock.eco) ts.final.tmp[[s]] <- ts.final[ts.final$Stock==s,]
 ts.final <- ts.final.tmp
 
+################################## Edits stop here ###############################################
 
 #ggplot(ts.final) + geom_line(aes(x= Years,y=abund,group=sim,color=sim)) + facet_wrap(~Stock) + scale_y_log10()
 
