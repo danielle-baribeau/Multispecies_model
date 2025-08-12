@@ -4,12 +4,14 @@
 # all happens within a set of 1000 ecosystems scenarios (so each ecosystems would have 1000 population dynamics simulations run on it in this scenario)
 
 
-n.yrs.proj <- 50 # How many years into the future we are going to project the stocks
-n.sims <- 50 # The numbers of simulations to run, keeping low for testing...
+n.yrs.proj <- 7 # How many years into the future we are going to project the stocks
+n.sims <- 3 # The numbers of simulations to run, keeping low for testing...
 
 
-dat.loc <- 'C:/Users/keithd/Documents/GitHub/ICM'
-repo.loc <- "C:/Users/keithd/Documents/GitHub/Multispecies_model"
+#dat.loc <- 'C:/Users/keithd/Documents/GitHub/ICM'
+#repo.loc <- "C:/Users/keithd/Documents/GitHub/Multispecies_model"
+dat.loc <- 'C:/Users/bowlbyh/Desktop/Graduate Studies/ICM'
+repo.loc <- 'C:/Users/bowlbyh/Desktop/Graduate Studies/Multispecies_model'
 #loc <- "C:/Users/keithd/Documents/Github/ICM"
 load(file = paste0(dat.loc,"/Results/all_cleaned_forward_tune_summaries_no_age_corection_fec_nm.Rdata"))
 load(file = paste0(dat.loc,"/Results/model_inputs_no_age_correction.Rdata"))
@@ -100,6 +102,20 @@ test <- trophic.mod(stocks = stock.lst,lambdas= eco.lambdas,n.sims=n.sims,
 catch <- data.frame(catch = c(1e5,1e5,100,100,1e4,1000,1e4,1e4,1e4,1e4,100,100,100,100),Stock = names(stock.lst))
 test <- trophic.mod(stocks = stock.lst,lambdas= eco.lambdas,n.sims=n.sims,
                     catch = list(catch =catch,er.mn = NULL,er.sd = NULL),
+                    n.yrs.proj= n.yrs.proj,repo.loc=repo.loc)
+
+
+######################### Run this if you want to use the catch function ######################################
+#this management info will be used to inform catch projections in simulation
+  #user sets exploitation rate for first management cycle, then rate will be updated by the simulation in each assessment
+mgmt.plan <- data.frame(stock = eco.stocks, stock.num = c(seq(1,length(eco.stocks))),
+                        ex.curr = c(rep(0.1, length(eco.stocks))),
+                        assessment.interval = c(rep(3,length(eco.stocks))))
+###############################################################################################################
+
+
+test <- trophic.mod(stocks = stock.lst,lambdas= eco.lambdas,n.sims=n.sims,
+                    mgmt = list(mgmt =mgmt.plan,er.mn = NULL,er.sd = NULL),
                     n.yrs.proj= n.yrs.proj,repo.loc=repo.loc)
 
 # Look at this...
