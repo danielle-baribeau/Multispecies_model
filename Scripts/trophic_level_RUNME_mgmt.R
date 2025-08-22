@@ -69,3 +69,19 @@ mgmt.plan <- data.frame(stock = eco.stocks, stock.num = c(seq(1,length(eco.stock
                         ex.curr = c(rep(0.1, length(eco.stocks))),
                         assessment.interval = c(rep(3,length(eco.stocks))))
 ###############################################################################################################
+
+
+test <- trophic.mod(stocks = stock.lst,lambdas= eco.lambdas,n.sims=n.sims,
+                    mgmt = list(mgmt =mgmt.plan,er.mn = NULL,er.sd = NULL),
+                    n.yrs.proj= n.yrs.proj,repo.loc=repo.loc)
+
+# Look at this...
+test$sim.ts
+
+#testing catch function
+stocks = stock.lst
+lambdas= eco.lambdas
+n.sims=n.sims
+mgmt = list(mgmt =mgmt.plan,er.mn = NULL,er.sd = NULL)
+n.yrs.proj= n.yrs.proj
+repo.loc=repo.loc

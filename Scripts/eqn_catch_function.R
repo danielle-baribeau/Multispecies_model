@@ -12,6 +12,22 @@
 #NOTE 2: each updated exploitation rate is applied not to the current projection year, but to the next one 
 #(this delay models lags in mgmt implementation)
 
+
+#TO-DO: make a version of this that doesn't use USR - linearly increases u as biomass goes up
+##make it so that you can compare between different stock assessment styles
+#Can also let user decide what u will be below LRP; not necessarily 0
+
+#Climate - under vulnerabilities, look at update frequency? Changing how reference points are calculated?
+#as long as you have some coherent plan for the ATC (question per chapter), you'll be good
+  #can show results of North Sea fn in ATC - proof of concept
+
+#next steps for this:
+  #build in the uncertainty for the u
+  #convert to linear increase beyond LRP
+  #convert to setting u below LRP
+  #convert to set amount per year
+  #picking beginning questions for ATC
+
 proj.catch.eqn <- function(mgmt.stock, repo.loc = "D:/GitHub/Multispecies_model/")
 {
   #isolate management criteria from stock-specific management plan
@@ -29,6 +45,9 @@ proj.catch.eqn <- function(mgmt.stock, repo.loc = "D:/GitHub/Multispecies_model/
     update <- NULL
     update.type <- NULL
     ex.next <- NULL
+    
+    #lognormal sample exploitation rates from distribution of mean around desired value; set sd to 0 to get exact value
+    #use rlnorm()
   
     #start "assessment year" loop
     if(t %% a.interval == 0){

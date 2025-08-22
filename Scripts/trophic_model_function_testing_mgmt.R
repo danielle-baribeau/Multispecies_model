@@ -505,6 +505,11 @@ av.wgt <- data.frame(Stock = av.wgt$Stock,troph.cat = as.numeric(av.wgt$troph.ca
 ## Finding reference points for each stock (low and high thresholds) ##
   #using 40% and 80% of median historic biomass - aligns with DFO management
 
+#put this into a new function
+#allow for 0.4 and 0.8 to be changed
+#also make it so you don't have to pick the median
+#function inputs that allow user to input anything, but make defaults median/0.4/0.8
+
 #find median historic biomass values for all stocks
   #initialize results objects
     median.hist.bm <- c(rep(0, length(stock.eco)))
@@ -751,29 +756,32 @@ res.ts[[s]] <- rbind(res.ts[[s]] ,data.frame(net.bm = tst.res,removals = removal
                                              Stock = s,sim= j,lambda = lam.samp, Years=t,
                                              troph.cat = as.numeric(unique(bm.tot$troph.cat[bm.tot$Stock ==s])),
                                              K.bm = tmp.stock.K$adj.K))
+
+if (t %% assessment == 0){
+  mgmt.plan$ex.curr[mgmt.plan$stock == s] <- next.yrs.u
+}
+
 }#end stock loop
 #if this an assessment year, update default exploitation rate in original management plan for the stock
-if (t %% assessment == 0){
-  mgmt.plan$ex.curr[stock.num] <- next.yrs.u
-}
 
   # Unpack the results
   ts.unpack[[j]] <- do.call('rbind',res.ts)
   
 #ggplot(ts.unpack[[j]]) + geom_line(aes(x= Years,y=abund,group=Stock,color=Stock)) + facet_wrap(~troph.cat) + scale_y_log10()
   
-  
+}# end t loop
   # Pop a note when done each simulation
   timer <- Sys.time() - st.time
   print(paste("Simulation ", j))
   print(signif(timer,digits=2))
-  
-}# end t loop
-
 }#end n.sims
   
 # Unpack all the results.
 ts.final <- do.call("rbind",ts.unpack)
+#store ts.final in data frame form
+ts.final.df <- ts.final
+  #order according to stock, year and simulation iteration
+ts.final.df <- ts.final.df[order(ts.final.df$Stock), ]
 #Group results by stock into lists
 ts.final.tmp <- NULL
 for(s in stock.eco) ts.final.tmp[[s]] <- ts.final[ts.final$Stock==s,]
