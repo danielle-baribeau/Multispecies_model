@@ -1,5 +1,5 @@
+### FISHING FUNCTION ###
 
-# Fishing function development
 #This function is called in the stock loop of trophic_model_function simulation,
 #and determines the catch and net biomass of a given stock in a given projection year
 
@@ -13,20 +13,7 @@
 #(this delay models lags in mgmt implementation)
 
 
-#TO-DO: make a version of this that doesn't use USR - linearly increases u as biomass goes up
-##make it so that you can compare between different stock assessment styles
-#Can also let user decide what u will be below LRP; not necessarily 0
 
-#Climate - under vulnerabilities, look at update frequency? Changing how reference points are calculated?
-#as long as you have some coherent plan for the ATC (question per chapter), you'll be good
-  #can show results of North Sea fn in ATC - proof of concept
-
-#next steps for this:
-  #build in the uncertainty for the u
-  #convert to linear increase beyond LRP
-  #convert to setting u below LRP
-  #convert to set amount per year
-  #picking beginning questions for ATC
 
 proj.catch.eqn <- function(mgmt.stock, repo.loc = "D:/GitHub/Multispecies_model/")
 {
@@ -39,6 +26,9 @@ proj.catch.eqn <- function(mgmt.stock, repo.loc = "D:/GitHub/Multispecies_model/
   intercept <- mgmt.stock$intercept
   ex.curr <- mgmt.stock$ex.curr
   stock.num <- mgmt.stock$stock.num
+  u.sd <- mgmt.stock$u.sd
+  u.min <- mgmt.stock$u.min
+  u.max <- mgmt.stock$u.max
   
   #start "stock assessment"
     #set up objects
@@ -52,7 +42,7 @@ proj.catch.eqn <- function(mgmt.stock, repo.loc = "D:/GitHub/Multispecies_model/
     #start "assessment year" loop
     if(t %% a.interval == 0){
       if (bm.start <= low.threshold.stock){
-        ex.next <- 0
+        ex.next <- abs(rnorm(1, mean = u.min, sd = u.sd))
         update <- 1
         update.type <- "assessment completed; u = 0"
 
@@ -61,11 +51,11 @@ proj.catch.eqn <- function(mgmt.stock, repo.loc = "D:/GitHub/Multispecies_model/
       #apply equation to get exploitation rate for bm.start
       ex.next <- slope*(bm.start) + intercept
       update <- 2
-      update.type <- paste("assessment completed; u changed to ", ex.next)
+      update.type <- paste("assessment completed; u changed to ", round(ex.next, digits = 4))
 
     }#end "in between thresholds" loop
     if(bm.start >= high.threshold.stock){
-      ex.next <- 0.4
+      ex.next <- abs(rnorm(1, mean = u.max, sd = u.sd))
       update <- 3
       update.type <- "assessment completed; u changed to 0.4"
 
@@ -74,7 +64,7 @@ proj.catch.eqn <- function(mgmt.stock, repo.loc = "D:/GitHub/Multispecies_model/
     if(t %% a.interval != 0){
       update <- 0
       update.type <- "no assessment this year"
-      ex.next <- ex.curr
+      ex.next <- abs(rnorm(1, mean = ex.curr, sd = u.sd))
     }#end of "regular year" loop
   #end of assessment
   

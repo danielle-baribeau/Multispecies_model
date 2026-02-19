@@ -8,16 +8,12 @@
 #2 lambdas:     # Lambda estimates from the LTR model run
 #3: n.yrs.proj  # How many years into the future we are going to project the stocks
 #4: n.sims      # The numbers of simulations to run, keeping low for testing...
-#5: er.mn       # Average exploitation rate for the fishery for each stock, set up to be proportional 
-#               # Should be the same length as the number of stocks. Defaults to NULL, which is no exploitation
-#6: er.sd       # standard deviation of exploitation rate for the fishery for each stock, set up to be proportional 
-#               # Should be the same length as the number of stocks. Defaults to NULL, which is no uncertainty
-#7: repo.loc    # Location of the Github repo, defaults to "D:/GitHub/Multispecies_model/"
-#8: mgmt        #list of management plan information for each stock
+#5: repo.loc    # Location of the Github repo, defaults to "D:/GitHub/Multispecies_model/"
+#6: mgmt        #list of management plan information for each stock
 
 
 trophic.mod<-function(stocks = NULL,lambdas= NULL,n.yrs.proj = 50, n.sims = 20,
-                      mgmt = list(mgmt = mgmt.plan,er.mn = NULL,er.sd = NULL),
+                      mgmt = list(mgmt = mgmt.scen,er.mn = NULL,er.sd = NULL),
                       repo.loc = "D:/GitHub/Multispecies_model",method = "not_sample")
 {
 stock.eco <- names(stocks)
@@ -27,6 +23,7 @@ library(GGally)
 library(cowplot)
 library(ggthemes)
 library(boot)
+library(ggplot2)
 # Set the base plot theme
 theme_set(theme_few(base_size = 22))
 options(scipen = 999)
@@ -145,12 +142,13 @@ lambdas <- lambdas.tmp
 
 # Biomass by trophic level over time
 bm.tl.plt <- ggplot(bm.best) + geom_line(aes(x=Year,y=bm.tl,group=as.character(troph.cat),color=as.character(troph.cat))) + 
-  scale_color_manual(values = c("blue","red","darkgrey","lightgreen")) + scale_y_log10(name="Biomass")
+  scale_color_manual(values = c("blue","red","darkgrey","lightgreen")) + scale_y_log10(name="Biomass") +
+  theme(legend.position = 'bottom')
 save_plot(paste0(repo.loc,"/Figures/Biomass_by_trophic_level.png"),bm.tl.plt,base_height = 8,base_width = 11)
 # This is real good now...
 prop.bm.tl.plt <- ggplot(bm.best) + geom_line(aes(x=Year,y=prop.bm.tl,group=as.character(troph.cat),color=as.character(troph.cat))) + 
   scale_color_manual(values = c("blue","red","darkgrey","lightgreen")) + 
-  scale_y_continuous(name="Proportion of Biomass")
+  scale_y_continuous(name="Proportion of Biomass") +   theme(legend.position = 'bottom')
 save_plot(paste0(repo.loc,"/Figures/Prop_biomass_by_trophic_level.png"),prop.bm.tl.plt,base_height = 8,base_width = 11)
 
 # The biomass for the ecosystem
@@ -503,7 +501,7 @@ av.wgt <- data.frame(Stock = av.wgt$Stock,troph.cat = as.numeric(av.wgt$troph.ca
 
 ##### DB - NEW STUFF FOR FISHING ##########################################
 ## Finding reference points for each stock (low and high thresholds) ##
-  #using 40% and 80% of median historic biomass - aligns with DFO management
+  #using 40% and 80% of median historic biomass
 
 #put this into a new function
 #allow for 0.4 and 0.8 to be changed
@@ -539,8 +537,8 @@ av.wgt <- data.frame(Stock = av.wgt$Stock,troph.cat = as.numeric(av.wgt$troph.ca
     }#end of threshold loop
 
   #add thresholds into management plan data frame
-    mgmt.plan$low.threshold <- min.threshold
-    mgmt.plan$high.threshold <- max.threshold
+    mgmt.scen$low.threshold <- min.threshold
+    mgmt.scen$high.threshold <- max.threshold
 
     
 ## Finding equation of the line between low and high thresholds for each stock ##
@@ -549,10 +547,15 @@ av.wgt <- data.frame(Stock = av.wgt$Stock,troph.cat = as.numeric(av.wgt$troph.ca
     bm.slope <- c(rep(0, length(stock.eco)))
     count.eqn <- 1
 
-  #find eqn components
+  #find eqn components***NEW CHANGES HERE
+      #do they need to have different slopes?
     for (s in stock.eco) {
       #make a data frame that holds both thresholds for the stock
-      thresholds <- data.frame(u = c(0.4, 0.8), bm = c(min.threshold[count.eqn], max.threshold[count.eqn]))
+        #get halfway mark between low and high thresholds (for u of 0.2) - need more than 2 points to get a
+        #different slope
+      half.bm <- min.threshold[count.eqn] + ((max.threshold[count.eqn] - min.threshold[count.eqn])/2)
+      thresholds <- data.frame(u = c(0, 0.2, 0.4), 
+                               bm = c(min.threshold[count.eqn], half.bm, max.threshold[count.eqn]))
       #run model
       u.bm.mod <- lm(u ~ bm, thresholds)
       #find and extract coefficients
@@ -567,8 +570,8 @@ av.wgt <- data.frame(Stock = av.wgt$Stock,troph.cat = as.numeric(av.wgt$troph.ca
     }#end of equation loop
 
   #add equation components into management plan data frame
-    mgmt.plan$intercept <- bm.intercept
-    mgmt.plan$slope <- bm.slope
+    mgmt.scen$intercept <- bm.intercept
+    mgmt.scen$slope <- bm.slope
 
 ###################################################################
 
@@ -726,6 +729,9 @@ for(j in 1:n.sims)
       {
         lam.mn <- mean(stock.lambdas$lam.no.fish[high.bm.years],na.rm=T)
         lam.sd <- sd(log(stock.lambdas$lam.no.fish[high.bm.years]),na.rm=T)
+        #going to switch to stretched beta dist
+          #beta distribution bounded by minimum value in ts and maximum value in ts
+        #lam.samp <- r_(1, median lambda, min = min observed, max = max observed)
         lam.samp <- rlnorm(1,log(lam.mn),lam.sd)
         #if(is.na(lam.samp)) browser()
         while(lam.samp >1) lam.samp <- rlnorm(1,log(lam.mn),lam.sd)
@@ -734,7 +740,7 @@ for(j in 1:n.sims)
       
 ################################## New catch function stuff #########################################
 #make a stock-specific management plan
-      mgmt.stock <- mgmt.plan |> collapse::fsubset(stock == s)
+      mgmt.stock <- mgmt.scen |> collapse::fsubset(stock == s)
 #isolate stock position number/assessment interval from mgmt plan
       stock.num <- mgmt.stock$stock.num
       assessment <- mgmt.stock$assessment.interval
@@ -757,9 +763,8 @@ res.ts[[s]] <- rbind(res.ts[[s]] ,data.frame(net.bm = tst.res,removals = removal
                                              troph.cat = as.numeric(unique(bm.tot$troph.cat[bm.tot$Stock ==s])),
                                              K.bm = tmp.stock.K$adj.K))
 
-if (t %% assessment == 0){
-  mgmt.plan$ex.curr[mgmt.plan$stock == s] <- next.yrs.u
-}
+#update management plan to hold u for next year as new current u
+  mgmt.scen$ex.curr[mgmt.scen$stock == s] <- next.yrs.u
 
 }#end stock loop
 #if this an assessment year, update default exploitation rate in original management plan for the stock
@@ -774,6 +779,10 @@ if (t %% assessment == 0){
   timer <- Sys.time() - st.time
   print(paste("Simulation ", j))
   print(signif(timer,digits=2))
+  
+  #reset management plan for next iteration
+  mgmt.scen$ex.curr <- c(rep(0.1, length(eco.stocks)))
+
 }#end n.sims
   
 # Unpack all the results.
@@ -788,6 +797,311 @@ for(s in stock.eco) ts.final.tmp[[s]] <- ts.final[ts.final$Stock==s,]
 ts.final <- ts.final.tmp
 
 ################################## Edits stop here ###############################################
+#DANIELLE'S OUTPUTS
+#THESE SHOULD GO IN SEPARATE FUNCTIONS
+
+#truncate stock IDs so that they can be plotted more easily
+  #keeping species name and area; removing assessor
+  #just doing this manually; specific to North Sea - couldn't figure out a good way to make it general
+short.names <- c("IV 3a,7d_Clupea_harengus", "NS_Ammodytes_tobianus", "IIIa 22-24_Solea_Solea",
+                 "6a_Gadus_morhua", "4-6a-20_Melanogrammus_aeglefinus", "4,20_Pleuronectes_platessa",
+                 "4-3aN_Trisopterus_esmarkii", "4-6- 3a_Pollachius_virens", "4-7d,20_Gadus_morhua",
+                 "4-7d_Merlangius_merlangus", "7d_Solea_solea", "7d_Pleuronectes_platessa", 
+                 "4 _Scopthalmus_maximus", "4 _Solea_solea")
+
+#STOCK STATUS
+  #heatmap showing the percentage of simulation iterations where stock is at a status of interest
+  #each assessment year
+  #use numeric "update type' results (a.k.a "status code") to get stock status
+    #1 = critical
+    #2 = cautious
+    #3 = healthy
+
+#choose status code you want to investigate:
+status.code <- 1
+
+#1. Make data frame that holds assessment year, stock and update type for all stocks
+#intialize intermediary objects
+name <- NULL
+stock.res <- NULL
+#initialize object to hold results
+stock.status.data <- NULL
+for (f in 1:length(short.names)){
+  #browser()
+  #pull out stock-specific ts.final results
+  stock.res <- ts.final[[f]]
+  #remove all years that aren't assessment years from stock-specific results
+  stock.res <- stock.res |> collapse::fsubset(mgmt.update != 0)
+  #condense stock.status to columns of interest
+  stock.res <- stock.res[ , c('mgmt.update', 'Years', 'sim')]
+  #create data frame to hold proportion of simulations with stock status of interest
+  name <- short.names[f]
+  stock.status <- data.frame(stock = c(rep(name, length(unique(stock.res$Years)))),
+                              assessment.year = unique(stock.res$Years), 
+                              prop.status.code = c(rep(2, length(unique(stock.res$Years))))) 
+                            #prop.status.code initialized as 2 because a
+                            #proportion can't be higher than 1; for QC checks
+  #Now, go through stock specific results and count the number of status codes of interest for each 
+  #assessment year
+  #initialize loop and results objects
+  a.yr <- NULL
+  yr.res <- NULL
+  count.status.code <- NULL
+  #loop through new data frame and fill in prop.status.code
+  for (y in 1:length(stock.status$assessment.year)){
+    #set up counter to track results
+    count.status.code <- 0
+    #store specific assessment year
+    a.yr <- stock.status$assessment.year[y]
+    #subset results to the year of interest
+    yr.res <- stock.res |> collapse::fsubset(Years %in% a.yr)
+    #count how many times status code of interest shows up across the iterations of the year of interest
+    for (n in 1:length(yr.res$mgmt.update)){
+      if (yr.res$mgmt.update[n] == status.code){
+        count.status.code <- count.status.code + 1
+      }
+    }#end of counting stock status code loop
+    #fill in prop.status.code:
+    stock.status$prop.status.code[y] <- count.status.code/n.sims
+
+  }#end of "fill stock.status" loop
+  
+#store stock-specific results in main results data frame (long format for heatmap)
+  
+  #attach stock-specific results to full results data frame
+  stock.status.data <- rbind(stock.status.data, stock.status)
+}#end of stock status heatmap loop
+  #checked yrs 3 and 18 for sand lance and haddock - it worked!
+
+#2. Make heatmap
+#get min and max years from stock.status.data
+hm.min <- min(stock.status.data$assessment.year)
+hm.max <- max(stock.status.data$assessment.year)
+hm.interval <- stock.status.data$assessment.year[2] - hm.min
+#NOTE - for this to work, assessment interval needs to be the same for all stocks
+#plot data
+hm.stock.status <- ggplot(stock.status.data, aes(assessment.year, stock)) +                 
+  geom_tile(aes(fill = prop.status.code), colour = "white") +
+  scale_fill_gradient(low = "darkorchid", high = "yellow") +
+  labs(x = "Assessment year\n(Number of years from start of simulation)", y = "Stock ID",
+       fill = "Proportion of\niterations") +
+  theme(legend.position = "top",
+        legend.key.width = unit(1.5, 'cm')) +
+  scale_x_continuous(breaks = seq(hm.min, hm.max, by = hm.interval))
+hm.stock.status    
+
+#Set up input data for biomass, exploitation rates, lambda and K.bm in the same data frame
+  #similar to stock status, except all projection years are included
+#individual stocks:
+#reset intermediary object
+name <- NULL
+stock.res <- NULL
+#initialize object to hold results
+res.data <- NULL
+for (f in 1:length(short.names)){
+  #pull out stock-specific ts.final results
+  stock.res <- ts.final[[f]]
+  #remove all years that aren't assessment years from stock-specific results
+  stock.res <- stock.res |> collapse::fsubset(mgmt.update != 0)
+  #condense stock.status to columns of interest
+  stock.res <- stock.res[ , c('mgmt.update', 'Years', 'sim')]
+  #create data frame to hold proportion of simulations with stock status of interest
+  name <- short.names[f]
+  stock.status <- data.frame(stock = c(rep(name, length(unique(stock.res$Years)))),
+                              assessment.year = unique(stock.res$Years), 
+                              prop.status.code = c(rep(2, length(unique(stock.res$Years))))) 
+  #pull out stock-specific ts.final results
+  stock.res <- ts.final[[f]]
+  #condense stock.status to columns of interest
+  stock.res <- stock.res[ , c('net.bm', 'current.u', 'lambda', 'K.bm','Years', 'sim', 'troph.cat')]
+  #add stock ID to stock.res
+  name <- short.names[f]
+  #add stockID to stock.res
+  stock.res$stock.ID <- c(rep(name, length(stock.res$net.bm)))
+  #add stock.res onto results df
+  res.data <- rbind(res.data, stock.res)
+}#end of stock-specific results df setup
+
+
+#BIOMASS
+#option 1 - show historical thresholds on this graph
+pdf(file = 'C:/Users/BARIBEAUD/Desktop/MSc/First Year Fall 2025/Test Output Plots/stock_biom_25113_NS.pdf',
+    height = 12, width = 12)
+count.bm <- 1
+name <- NULL
+bm.plot <- NULL
+for(f in 1:length(short.names)){
+  #store full stock name
+  full.ID <- stock.eco[f]
+  #isolate stock-specific historical data
+  s.hist.bm <- bm.best |> collapse::fsubset(Stock == full.ID)
+  #get minimum, median and maximum historical biomass
+  hist.min.bm <- min(s.hist.bm$bm.stock)
+  hist.med.bm <- median(s.hist.bm$bm.stock)
+  hist.max.bm <- max(s.hist.bm$bm.stock)
+  #get stock-specific data from results df
+  name <- short.names[f]
+  stock.data <- res.data |> collapse::fsubset(stock.ID == name)
+  #make plot
+  bm.plot[[as.character(f)]] <- ggplot(stock.data, aes(Years, net.bm, group = sim)) +
+    geom_line() +
+    scale_x_continuous(breaks = seq(0, n.yrs.proj, by = 2)) +
+    coord_cartesian(xlim = c(0,n.yrs.proj)) +
+    scale_y_log10(name = "Projected biomass") +
+  labs(x = "Assessment year\n(Number of years from start of simulation)", title = paste(name)) +
+    geom_hline(yintercept = hist.min.bm, linetype = 2, colour = "#5E8FB9", linewidth = 2) +
+      annotate("text", x=-0.3, y=(hist.min.bm), label="1", fontface="italic",
+            colour = "black", size = 7) +
+    geom_hline(yintercept = hist.med.bm, linetype = 2, colour = "#5E8FB9", linewidth = 2) +
+      annotate("text", x=-0.3, y=(hist.med.bm), label="2", fontface="italic",
+            colour = "black", size = 7) +
+    geom_hline(yintercept = hist.max.bm, linetype = 2, colour = "#5E8FB9", linewidth = 2) +
+      annotate("text", x=-0.3, y=(hist.max.bm), label="3", fontface="italic",
+            colour = "black", size = 7) +
+    theme(plot.title = element_text(hjust = 0.5))
+  print(bm.plot[[as.character(f)]])
+}#end of biomass pdf plot loop
+dev.off()
+
+#option 2 - show stock status zones (alternative to heatmap?)
+pdf(file = 'C:/Users/BARIBEAUD/Desktop/MSc/First Year Fall 2025/Test Output Plots/stock__status_biom_25113_NS.pdf',
+    height = 12, width = 12)
+count.bm <- 1
+name <- NULL
+for(f in 1:length(short.names)){
+  #get LRP and USR for this stock
+  s.lrp <- mgmt.scen$low.threshold[f]
+  s.usr <- mgmt.scen$high.threshold[f]
+  #get stock-specific data from results df
+  name <- short.names[f]
+  stock.data <- res.data |> collapse::fsubset(stock.ID == name)
+  #make plot
+  bm.plot[[as.character(f)]] <- ggplot(stock.data, aes(Years, net.bm, group = sim)) +
+    geom_line() +
+    scale_x_continuous(breaks = seq(0, n.yrs.proj, by = 2)) +
+    scale_y_log10(name = "Projected biomass") +
+    labs(x = "Assessment year\n(Number of years from start of simulation)", title = paste(name)) +
+    annotate("rect", xmin = 0, xmax =n.yrs.proj, ymin = min(stock.data$net.bm), ymax = s.lrp,
+             alpha = .2,fill = "#D55E00") +
+    geom_hline(yintercept = s.lrp, linetype = 2, colour = "darkgrey") +
+    annotate("text", x=-1.5, y=s.lrp, label="LRP", fontface="italic", colour = "black", size = 6) +
+    annotate("rect", xmin = 0, xmax = n.yrs.proj, ymin = s.lrp, ymax = s.usr,
+             alpha = .2,fill = "#F0E442") +
+    geom_hline(yintercept = s.usr, linetype = 2, colour = "darkgrey") +
+    annotate("text", x=-1.5, y=s.usr, label="USR", fontface="italic", colour = "black", size = 6) +
+    annotate("rect", xmin = 0, xmax = n.yrs.proj, ymin = s.usr, ymax = max(stock.data$net.bm),
+             alpha = .2,fill = "#009E73") +
+    theme(plot.title = element_text(hjust = 0.5))
+  print(bm.plot[[as.character(f)]])
+}#end of biomass pdf plot loop
+dev.off()
+
+#option 3 - violins of biomass at 5 years and 50 years for each stock
+  #could also apply this to lambda or u
+  yrs <- c(5, 50)
+  violin.res <- res.data |> collapse::fsubset(Years %in% yrs)
+  violin.res$Years <- as.factor(violin.res$Years)
+  
+  #add in stock index numbers; too difficult to fit it all on x-axis of violin plot
+  count.index <- 1
+  violin.res$stock.index <- c(rep(0, length(violin.res$stock.ID)))
+  for (f in 1:length(short.names)){
+    name <- short.names[f]
+    for (j in 1:length(violin.res$stock.index)){
+      if (violin.res$stock.ID[j] == name){
+        violin.res$stock.index[j] <- count.index
+      }#end of index if loop
+    }#end of violin.res index loop
+    #update count index
+    count.index <- count.index + 1
+  }#end of stock index loop
+  
+  #Biomass violin:
+  colours <- list('5' = '#F0E442', '50' = '#E69F00')
+  v.bm <- ggplot(violin.res, aes(x=factor(stock.index), y=net.bm, fill = Years)) +
+    geom_violin() +
+    scale_y_log10(name = "Projected biomass") +
+    labs(x = "Stock index", fill = "Elapsed\nprojection years") +
+    scale_fill_manual(values = colours) +
+    theme(legend.position = "top",
+          legend.key.width = unit(0.5, 'cm'))
+    
+  v.bm
+
+
+
+
+#EXPLOITATION RATES (same options as for biomass)
+#show historical thresholds on this graph (can't do this yet because I don't have historical
+#fishing data set up)
+
+pdf(file = 'C:/Users/BARIBEAUD/Desktop/MSc/First Year Fall 2025/Test Output Plots/stock__u_rate_25113_NS.pdf',
+    height = 12, width = 12)
+count.bm <- 1
+name <- NULL
+for(f in 1:length(short.names)){
+  #get stock-specific data from results df
+  name <- short.names[f]
+  stock.data <- res.data |> collapse::fsubset(stock.ID == name)
+  #remove year 0s from dataset
+  stock.data <- stock.data[complete.cases(stock.data), ]
+  #make plot
+      bm.plot[[as.character(f)]] <- ggplot(stock.data, aes(Years, current.u, group = sim)) +
+      geom_line() +
+        scale_x_continuous(breaks = seq(0, n.yrs.proj, by = 2)) +
+      labs(x = "Assessment year\n(Number of years from start of simulation)", 
+           y = "Projected exploitation rate (u)", title = paste(name)) +
+      theme(plot.title = element_text(hjust = 0.5))
+  print(bm.plot[[as.character(f)]])
+}#end of biomass pdf plot loop
+dev.off()
+
+
+#LAMBDA
+#show historical thresholds on this graph
+pdf(file = 'C:/Users/BARIBEAUD/Desktop/MSc/First Year Fall 2025/Test Output Plots/stock_l_25113_NS.pdf',
+    height = 12, width = 12)
+count.bm <- 1
+name <- NULL
+for(f in 1:length(short.names)){
+  #isolate stock-specific historical data
+  s.hist.lam <- lambdas[[f]]
+  #get minimum, median and maximum historical biomass
+  hist.min.lam <- min(s.hist.lam$lam.no.fish)
+  hist.med.lam <- median(s.hist.lam$lam.no.fish)
+  hist.max.lam <- max(s.hist.lam$lam.no.fish)
+  #get stock-specific data from results df
+  name <- short.names[f]
+  stock.data <- res.data |> collapse::fsubset(stock.ID == name)
+  #remove year 0 rows from stock.data
+  stock.data <- stock.data[complete.cases(stock.data), ]
+  #make plot
+  bm.plot[[as.character(f)]] <- ggplot(stock.data, aes(Years, lambda, group = sim)) +
+    geom_line() +
+    scale_x_continuous(breaks = seq(1, n.yrs.proj, by = 2)) +
+    labs(x = "Assessment year\n(Number of years from start of simulation)", 
+         y = "Lambda", title = paste(name)) +
+    geom_hline(yintercept = hist.min.lam, linetype = 2, colour = "#E35408", linewidth = 2) +
+    annotate("text", x=-0.3, y=(hist.min.lam), label="1", fontface="italic",
+             colour = "black", size = 9) +
+    geom_hline(yintercept = hist.med.lam, linetype = 2, colour = "#E35408", linewidth = 2) +
+    annotate("text", x=-0.3, y=(hist.med.lam), label="2", fontface="italic",
+             colour = "black", size = 9) +
+    geom_hline(yintercept = hist.max.lam, linetype = 2, colour = "#E35408", linewidth = 2) +
+    annotate("text", x=-0.3, y=(hist.max.lam), label="3", fontface="italic",
+             colour = "black", size = 9) +
+    theme(plot.title = element_text(hjust = 0.5))
+  print(bm.plot[[as.character(f)]])
+}#end of lambda pdf plot loop
+dev.off()
+
+
+#ECONOMIC VALUE OF THE CATCH
+#would be same as option 1 for biomass
+
+#Going to repeat with trophic category and total ecosystem
+
+##################################################################################################
 
 #ggplot(ts.final) + geom_line(aes(x= Years,y=abund,group=sim,color=sim)) + facet_wrap(~Stock) + scale_y_log10()
 

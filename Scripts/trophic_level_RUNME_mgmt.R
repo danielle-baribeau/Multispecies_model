@@ -4,11 +4,11 @@
 # all happens within a set of 1000 ecosystems scenarios (so each ecosystems would have 1000 population dynamics simulations run on it in this scenario)
 
 
-n.yrs.proj <- 7 # How many years into the future we are going to project the stocks
-n.sims <- 3 # The numbers of simulations to run, keeping low for testing...
+n.yrs.proj <- 25 # How many years into the future we are going to project the stocks
+n.sims <- 100 # The numbers of simulations to run, keeping low for testing...
 
-dat.loc <- 'C:/Users/bowlbyh/Desktop/Graduate Studies/ICM'
-repo.loc <- 'C:/Users/bowlbyh/Desktop/Graduate Studies/Multispecies_model'
+dat.loc <- 'C:/Users/BARIBEAUD/Desktop/GitHub/ICM'
+repo.loc <- 'C:/Users/BARIBEAUD/Desktop/GitHub/Multispecies_model'
 load(file = paste0(dat.loc,"/Results/all_cleaned_forward_tune_summaries_no_age_corection_fec_nm.Rdata"))
 load(file = paste0(dat.loc,"/Results/model_inputs_no_age_correction.Rdata"))
 # load in the trophic model function
@@ -63,16 +63,63 @@ for(s in names(for.tune.all)) if(s %in% eco.stocks) eco.lambdas[[s]] <- res.lamb
 
 
 ######################### Run this if you want to use the catch function ######################################
+#New management plan options:
+  #Using a function to fill in management scenario according to default settings
+  #specify which scenario you want, and function will fill things in
+
+#initialize empty starter scenario
+mgmt.scen <- NULL
+
+#call function to fill in your starter scenario based on inputs
+
+
+
 #this management info will be used to inform catch projections in simulation
   #user sets exploitation rate for first management cycle, then rate will be updated by the simulation in each assessment
-mgmt.plan <- data.frame(stock = eco.stocks, stock.num = c(seq(1,length(eco.stocks))),
-                        ex.curr = c(rep(0.1, length(eco.stocks))),
+mgmt.scen <- data.frame(stock = eco.stocks, stock.num = c(seq(1,length(eco.stocks))),
+                        ex.curr = c(rep(0.1, length(eco.stocks))), u.sd = c(rep(0, length(eco.stocks))),
+                        u.min = c(rep(0, length(eco.stocks))), u.max = c(rep(0.4, length(eco.stocks))),
                         assessment.interval = c(rep(3,length(eco.stocks))))
+
+#spec-specific exploitation rates (DONE)
+#go off fishery-affected lambdas; fishing has been minimal since 2000
+  #projections - directed fishing on top of what's already happening
+  #lambdas reflect a low level of bycatch that we can't characterize
+#selectivity - do we care?
+#get catchability into input time series biomass - matters for the Ks
+#fishing scenarios
+
+#to do before Dec 8th:
+  #biomass
+  #lambdas
+  #do a run from 2000 onwards
+  #fishing scenarios finalized
+
+#climate? - implement a vector on the Ks - species-specific penalties (constant throughout projections) 
+  #and the total ecosystem (annually varying)
+  #does abundance factor heavily into CRIB components? Need to track this
+
+#analysis of area fished post-collapse and effects of fishing in the future?
+  
 ###############################################################################################################
+
+#UPDATES COMPLETED
+  #rnorm for u sampling has been added in - user can set sd for this ahead of time
+  #u at LRP and USR now can get set by user
+
+#trade-offs between number of functions you have and the understandability of your code
+
+
+#UPDATES TO DO:
+  #code default management scenarios - IP
+  #plan output plots
+  #move eqn setup to a new function (see notes in trophic_model... file); make 0 and 0.4 default to u.min and u.max
+  #set up uncertainty in trophic level assignment
+  #stretched beta distribution - lambdas
 
 
 test <- trophic.mod(stocks = stock.lst,lambdas= eco.lambdas,n.sims=n.sims,
-                    mgmt = list(mgmt =mgmt.plan,er.mn = NULL,er.sd = NULL),
+                    mgmt = list(mgmt =mgmt.scen),
                     n.yrs.proj= n.yrs.proj,repo.loc=repo.loc)
 
 # Look at this...
@@ -82,6 +129,6 @@ test$sim.ts
 stocks = stock.lst
 lambdas= eco.lambdas
 n.sims=n.sims
-mgmt = list(mgmt =mgmt.plan,er.mn = NULL,er.sd = NULL)
+mgmt = list(mgmt =mgmt.scen)
 n.yrs.proj= n.yrs.proj
 repo.loc=repo.loc
