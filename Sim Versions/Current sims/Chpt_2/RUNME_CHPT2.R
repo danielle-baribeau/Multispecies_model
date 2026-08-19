@@ -1,15 +1,9 @@
-# FIX For the MAESTRO work, lets simulate the ecosystem a fixed number of times, then run the population dynamics on each of these ecosystem
-# simulations, instead of simulating the ecosystem for each of the population dynamics scenarios, for example, we can simulate 1,000 
-# ecosystems.  Then, for the fishery dynamics, if we are testing 10 scenarios and simulating the population dynamics 100 times, that 
-# all happens within a set of 1000 ecosystems scenarios (so each ecosystems would have 1000 population dynamics simulations run on it in this scenario)
+#CHAPTER 2:
+#Introduce model
+#Compare trophic control scenarios under different fishing pressure
 
-
-n.yrs.proj <- 10 # How many years into the future we are going to project the stocks
-n.sims <- 10 # The numbers of simulations to run, keeping low for testing...
-
-#dat.loc <- 'C:/Users/BARIBEAUD/Desktop/GitHub/ESS-Model-Setup/Feb2026_Data/No 5s'
-#repo.loc <- 'C:/Users/BARIBEAUD/Desktop/GitHub/ESS_Test_Run'
-#load(file = paste0(dat.loc,"/lambda_2024.RData"))
+n.yrs.proj <- 100 # How many years into the future we are going to project the stocks
+n.sims <- 500 # The numbers of simulations to run, keeping low for testing...
 
 dat.loc <- 'C:/Users/BARIBEAUD/Desktop/GitHub/ESS-Model-Setup/May 2026 Removals'
 repo.loc <- 'C:/Users/BARIBEAUD/Desktop/GitHub/Multispecies_model/ESS_Test_Run'
@@ -36,19 +30,6 @@ eco.fg <- data.frame(common = c("Atlantic cod", "Haddock", "White hake", "Silver
                         #MP = medium piscivore
                         #MBZ = medium benthivore/zoopiscivore
 
-#for CHPs
-#eco.fg <- data.frame(common = c("Pollock", "Haddock", "White hake", "Silver hake", "Atlantic cod", 
-                                #"Redfish","American plaice", "Witch flounder", "Atlantic wolffish", 
-                                #"Longfin hake","Thorny skate", "Smooth skate", 
-                                #"Longhorn sculpin", "Sea raven","Monkfish"),
-                     #code = eco.stocks,
-                     #FG = c("LP", "LB", "LP", "MP", "LP", "MBZ", "LP", "MBZ", "LB", "MBZ", "LB",
-                            #"MBZ", "MP", "MP", "LP"))
-#LP = large piscivore
-#LB = large benthivore
-#MP = medium piscivore
-#MBZ = medium benthivore/zoopiscivore
-
 
 #add FGs to biomass inputs
 stocks <- merge(lam, eco.fg, by = "code")
@@ -57,77 +38,13 @@ stocks <- merge(lam, eco.fg, by = "code")
 stocks.lst <- NULL
 for(s in 1:length(eco.stocks)) stocks.lst[[s]] <- stocks |> collapse::fsubset(code == eco.stocks[s])
 
-#eco.lambdas <- NULL
-#for(s in 1:length(eco.stocks)) eco.lambdas[[s]] <- lam |> collapse::fsubset(code == eco.stocks[s])
+#if using historical removals, read these in as well
+load("C:/Users/BARIBEAUD/Desktop/GitHub/Multispecies_model/Sim Versions/Current sims/Baseline/summary_hist_removals.RData")
+#add stock names to removals df
+rem.sum <- merge(rem.sum, eco.fg, by = "code")
 
 
-######################### Run this if you want to use the catch function ######################################
-#TO-DO:
-#New management plan options:
-  #Using a function to fill in management scenario according to default settings
-  #specify which scenario you want, and function will fill things in
-
-
-
-#this management info will be used to inform catch projections in simulation
-  #user sets exploitation rate for first management cycle, then rate will be updated by the simulation in each assessment
-mgmt.scen <- data.frame(stock = eco.stocks, stock.num = c(seq(1,length(eco.stocks))),
-                        ex.curr = c(rep(0.1, length(eco.stocks))), u.sd = c(rep(0, length(eco.stocks))),
-                        u.min = c(rep(0, length(eco.stocks))), u.max = c(rep(0.4, length(eco.stocks))),
-                        assessment.interval = c(rep(3,length(eco.stocks))))
-
-#spec-specific exploitation rates (DONE)
-#go off fishery-affected lambdas; fishing has been minimal since 2000
-  #projections - directed fishing on top of what's already happening
-  #lambdas reflect a low level of bycatch that we can't characterize
-#selectivity - do we care?
-#get catchability into input time series biomass - matters for the Ks
-#fishing scenarios
-
-#to do before Dec 8th:
-  #biomass - DONE
-  #lambdas - DONE
-  #do a run from 2000 onwards - DONE
-  #fishing scenarios finalized - DONE
-
-#climate? - implement a vector on the Ks - species-specific penalties (constant throughout projections) 
-  #and the total ecosystem (annually varying)
-  #does abundance factor heavily into CRIB components? Need to track this
-
-#analysis of area fished post-collapse and effects of fishing in the future?
-  
-###############################################################################################################
-
-#UPDATES COMPLETED
-  #rnorm for u sampling has been added in - user can set sd for this ahead of time
-  #u at LRP and USR now can get set by user
-
-#trade-offs between number of functions you have and the understandability of your code
-
-
-#UPDATES TO DO:
-  #plan output plots - DONE
-  #move eqn setup to a new function (see notes in trophic_model... file); make 0 and 0.4 default to u.min and u.max
-  #stretched beta distribution - lambdas
-
-
-#test <- trophic.mod(stocks = stock.lst,lambdas= eco.lambdas,n.sims=n.sims,
-                   # mgmt = list(mgmt =mgmt.scen),
-                    #n.yrs.proj= n.yrs.proj,repo.loc=repo.loc)
-
-# Look at this...
-#test$sim.ts
-
-#FOR TESTING
-#testing catch function
-stocks = stocks
-#lambdas= stocks.lst
-n.sims=n.sims
-#mgmt = list(mgmt =mgmt.scen)
-n.yrs.proj= n.yrs.proj
-repo.loc=repo.loc
-
-# Here we develop a multi-species model for the Eastern Scotian Shelf.
+### Parameters ###
 
   stock.eco <- unique(stocks$code)
   
@@ -153,10 +70,7 @@ repo.loc=repo.loc
     source(paste0(getwd(),"/",basename(fun)))
     file.remove(paste0(getwd(),"/",basename(fun)))
   }
-  
-  
-  ########################## Section 2 Parameters ########################## Section 2 Parameters ########################## Section 2 Parameters
-  
+
   # So here we are working to get the 'ecosystem' carrying capacity by looking at the total biomass for the ESS stocks we have
   # data for over the period of time we have data for all the stocks.
   # So here we pull out the data we need to look at total abundance and total biomass in the system by year...
@@ -306,3 +220,21 @@ repo.loc=repo.loc
   bfg.bm.best <- bfg.bm |> collapse::fsubset(Year %in% yrs)
   mfg.bm.best <- mfg.bm |> collapse::fsubset(Year %in% yrs)
   
+  
+### Run the model ###
+  
+  #test <- trophic.mod(stocks = stock.lst,lambdas= eco.lambdas,n.sims=n.sims,
+  # mgmt = list(mgmt =mgmt.scen),
+  #n.yrs.proj= n.yrs.proj,repo.loc=repo.loc)
+  
+  # Look at this...
+  #test$sim.ts
+  
+  #FOR TESTING
+  #testing catch function
+  stocks = stocks
+  #lambdas= stocks.lst
+  n.sims=n.sims
+  #mgmt = list(mgmt =mgmt.scen)
+  n.yrs.proj= n.yrs.proj
+  repo.loc=repo.loc  

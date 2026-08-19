@@ -3,16 +3,8 @@
 # ecosystems.  Then, for the fishery dynamics, if we are testing 10 scenarios and simulating the population dynamics 100 times, that 
 # all happens within a set of 1000 ecosystems scenarios (so each ecosystems would have 1000 population dynamics simulations run on it in this scenario)
 
-
-n.yrs.proj <- 10 # How many years into the future we are going to project the stocks
-n.sims <- 10 # The numbers of simulations to run, keeping low for testing...
-
-#dat.loc <- 'C:/Users/BARIBEAUD/Desktop/GitHub/ESS-Model-Setup/Feb2026_Data/No 5s'
-#repo.loc <- 'C:/Users/BARIBEAUD/Desktop/GitHub/ESS_Test_Run'
-#load(file = paste0(dat.loc,"/lambda_2024.RData"))
-
 dat.loc <- 'C:/Users/BARIBEAUD/Desktop/GitHub/ESS-Model-Setup/May 2026 Removals'
-repo.loc <- 'C:/Users/BARIBEAUD/Desktop/GitHub/ESS_Test_Run'
+repo.loc <- 'C:/Users/BARIBEAUD/Desktop/GitHub/Multispecies_model/ESS_Test_Run'
 load(file = paste0(dat.loc,"/removals_biomass_inputs.RData"))
 # load in the FG model function
 source(paste0(repo.loc,"/E_FG_model_function_testing_mgmt.R"))
@@ -44,8 +36,15 @@ stocks <- merge(lam, eco.fg, by = "code")
 stocks.lst <- NULL
 for(s in 1:length(eco.stocks)) stocks.lst[[s]] <- stocks |> collapse::fsubset(code == eco.stocks[s])
 
-#eco.lambdas <- NULL
-#for(s in 1:length(eco.stocks)) eco.lambdas[[s]] <- lam |> collapse::fsubset(code == eco.stocks[s])
+#if using historical removals, pull these as well
+load("C:/Users/BARIBEAUD/Desktop/GitHub/Multispecies_model/Sim Versions/Current sims/summary_hist_removals.RData")
+#add in stock names
+stock.names <- data.frame(common = c("Atlantic cod", "Haddock", "White hake", "Silver hake", "Pollock", 
+                                     "Redfish","American plaice", "Witch flounder", "Atlantic wolffish", 
+                                     "Longfin hake","Thorny skate", "Smooth skate", 
+                                     "Longhorn sculpin", "Sea raven","Monkfish"),
+                          code = eco.stocks)
+rem.sum <- merge(rem.sum, stock.names, by = "code")
 
 
 ######################### Run this if you want to use the catch function ######################################
@@ -57,6 +56,7 @@ for(s in 1:length(eco.stocks)) stocks.lst[[s]] <- stocks |> collapse::fsubset(co
 
 
 #this management info will be used to inform catch projections in simulation
+## using this in chapter 3 ##
   #user sets exploitation rate for first management cycle, then rate will be updated by the simulation in each assessment
 mgmt.scen <- data.frame(stock = eco.stocks, stock.num = c(seq(1,length(eco.stocks))),
                         ex.curr = c(rep(0.1, length(eco.stocks))), u.sd = c(rep(0, length(eco.stocks))),
